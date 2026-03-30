@@ -1,0 +1,9 @@
+{
+  "name": "ecommerce-project",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose up --build",
+    "dev:detached": "docker compose up --build -d",
+    "down": "docker compose down"
+  }
+}
