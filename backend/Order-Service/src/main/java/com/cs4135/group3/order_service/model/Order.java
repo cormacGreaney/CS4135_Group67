@@ -1,4 +1,4 @@
-package com.cs4135.group3.order-service;
+package com.cs4135.group3.order_service.model;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -20,11 +20,11 @@ public class Order
 {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long orderId;
+    private String orderId;
 
     private Long userId;
     private String orderDate;
-    private String status;
+    private String orderStatus;
     private Double totalPrice;
 }
 

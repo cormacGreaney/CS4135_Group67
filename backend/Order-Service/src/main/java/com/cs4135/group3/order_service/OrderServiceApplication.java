@@ -1,4 +1,4 @@
-package com.cs4135.group3.order-service;
+package com.cs4135.group3.order_service;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
