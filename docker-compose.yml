@@ -29,6 +29,17 @@ services:
     expose:
       - "8081"
 
+  order-service:
+    image: mysql:8.3.0
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql
+      MYSQL_DATABASE: order_service
+    ports:
+      - "3306:3306"
+    volumes:
+      - order-mysql-data:/var/lib/mysql
+      - ./backend/order-service/docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
   api-gateway:
     build:
       context: ./backend/api-gateway
@@ -48,3 +59,6 @@ services:
       - "5173:5173"
     depends_on:
       - api-gateway
+
+volumes:
+  order-mysql-data:
