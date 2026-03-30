@@ -1,35 +1,138 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
 
+const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [token, setToken] = useState('')
+  const [me, setMe] = useState(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function register() {
+    setError('')
+    setBusy(true)
+    try {
+      const res = await fetch(`${apiBase}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.message ?? JSON.stringify(data))
+        return
+      }
+      setToken(data.accessToken ?? '')
+      setMe(null)
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function login() {
+    setError('')
+    setBusy(true)
+    try {
+      const res = await fetch(`${apiBase}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.message ?? JSON.stringify(data))
+        return
+      }
+      setToken(data.accessToken ?? '')
+      setMe(null)
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function fetchMe() {
+    setError('')
+    setBusy(true)
+    try {
+      const res = await fetch(`${apiBase}/api/users/me`, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+          Accept: 'application/json',
+        },
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.message ?? JSON.stringify(data))
+        setMe(null)
+        return
+      }
+      setMe(data)
+    } catch (e) {
+      setError(String(e))
+      setMe(null)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
+    <div className="wrap">
+      <h1>User service (via API gateway)</h1>
+      <p className="hint">
+        Gateway: <code>{apiBase}</code> — start Postgres, user-service (8081), then api-gateway (8080), then{' '}
+        <code>npm run dev</code>.
       </p>
-      <p>Testing Testing</p>
-    </>
+
+      <label>
+        Email
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+        />
+      </label>
+      <label>
+        Password (min 8 chars)
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+      </label>
+
+      <div className="row">
+        <button type="button" disabled={busy} onClick={register}>
+          Register
+        </button>
+        <button type="button" disabled={busy} onClick={login}>
+          Login
+        </button>
+        <button type="button" disabled={busy || !token} onClick={fetchMe}>
+          GET /api/users/me
+        </button>
+      </div>
+
+      {error ? <p className="err">{error}</p> : null}
+
+      <section>
+        <h2>JWT (accessToken)</h2>
+        <pre className="box">{token || '—'}</pre>
+      </section>
+
+      <section>
+        <h2>/me response</h2>
+        <pre className="box">{me ? JSON.stringify(me, null, 2) : '—'}</pre>
+      </section>
+    </div>
   )
 }
 
