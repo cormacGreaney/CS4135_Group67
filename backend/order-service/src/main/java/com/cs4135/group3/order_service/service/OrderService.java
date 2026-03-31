@@ -1,12 +1,12 @@
 package com.cs4135.group3.order_service.service;
 
-
 import com.cs4135.group3.order_service.model.Order;
 import com.cs4135.group3.order_service.repository.OrderRepository;
 import com.cs4135.group3.order_service.requests.OrderRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -19,12 +19,18 @@ public class OrderService
     {
         // Logic to create an order
         Order order = new Order();
-        order.setOrderId(UUID.randomUUID().toString());
-        order.setUserId(order.getUserId());
-        order.setTotalPrice(orderRequest.totalPrice().doubleValue());
-        order.setOrderStatus(orderRequest.orderStatus());
-        order.setOrderDate(orderRequest.orderDate());
+
+        order.setUserId(orderRequest.userId());
+        order.setOrderNumber(UUID.randomUUID().toString());
+        order.setPrice(orderRequest.price());
+        order.setProductName(orderRequest.productName());
+        order.setQuantity(orderRequest.quantity());
 
         orderRepository.save(order);
+    }
+
+    public List<Order> getOrdersByUserId(Long userId)
+    {
+        return orderRepository.findByUserId(userId);
     }
 }
