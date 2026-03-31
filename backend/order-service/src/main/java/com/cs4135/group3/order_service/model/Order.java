@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "orders")
@@ -20,11 +21,11 @@ public class Order
 {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private String orderId;
-
+    private Long id;
     private Long userId;
-    private String orderDate;
-    private String orderStatus;
-    private Double totalPrice;
+    private String orderNumber;
+    private String productName;
+    private BigDecimal price;
+    private Integer quantity;
 }
 
