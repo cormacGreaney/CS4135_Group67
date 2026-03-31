@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import './App.css'
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
@@ -10,6 +10,9 @@ function App() {
   const [me, setMe] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [products, setProducts] = useState(null)
+  const [productQuery, setProductQuery] = useState('')
+  const [productsError, setProductsError] = useState('')
 
   async function register() {
     setError('')
@@ -57,6 +60,31 @@ function App() {
     }
   }
 
+  const loadProducts = useCallback(async (q) => {
+    setProductsError('')
+    setBusy(true)
+    try {
+      const qs = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''
+      const res = await fetch(`${apiBase}/api/products${qs}`, { headers: { Accept: 'application/json' } })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setProductsError(data.message ?? JSON.stringify(data))
+        setProducts(null)
+        return
+      }
+      setProducts(data)
+    } catch (e) {
+      setProductsError(String(e))
+      setProducts(null)
+    } finally {
+      setBusy(false)
+    }
+  }, [apiBase])
+
+  useEffect(() => {
+    void loadProducts('')
+  }, [loadProducts])
+
   async function fetchMe() {
     setError('')
     setBusy(true)
@@ -86,8 +114,8 @@ function App() {
     <div className="wrap">
       <h1>User service (via API gateway)</h1>
       <p className="hint">
-        Gateway: <code>{apiBase}</code> — start Postgres, user-service (8081), then api-gateway (8080), then{' '}
-        <code>npm run dev</code>.
+        Gateway: <code>{apiBase}</code> — start Postgres (user + product DBs), user-service (8081), product-service
+        (8082), api-gateway (8080), then <code>npm run dev</code>.
       </p>
 
       <label>
@@ -131,6 +159,26 @@ function App() {
       <section>
         <h2>/me response</h2>
         <pre className="box">{me ? JSON.stringify(me, null, 2) : '—'}</pre>
+      </section>
+
+      <section>
+        <h2>Catalog (GET /api/products)</h2>
+        <div className="row">
+          <label className="inline">
+            Search (q)
+            <input
+              type="search"
+              value={productQuery}
+              onChange={(e) => setProductQuery(e.target.value)}
+              placeholder="name contains…"
+            />
+          </label>
+          <button type="button" disabled={busy} onClick={() => void loadProducts(productQuery)}>
+            Search / refresh
+          </button>
+        </div>
+        {productsError ? <p className="err">{productsError}</p> : null}
+        <pre className="box">{products ? JSON.stringify(products, null, 2) : 'Loading…'}</pre>
       </section>
     </div>
   )
