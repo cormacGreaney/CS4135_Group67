@@ -1,3 +1,5 @@
+-- First version of the payments table. Run automatically when the app starts (Flyway).
+-- Payment ids are stored as 16-byte UUIDs to match the Java Payment class.
 CREATE TABLE payments (
     id UUID PRIMARY KEY,
     order_id BIGINT NOT NULL,
