@@ -48,6 +48,12 @@ label input {
   padding: 0.35rem 0.75rem;
 }
 
+label.inline {
+  display: inline-block;
+  margin-bottom: 0;
+  flex: 1 1 12rem;
+}
+
 .err {
   color: #b00020;
   font-size: 0.9rem;

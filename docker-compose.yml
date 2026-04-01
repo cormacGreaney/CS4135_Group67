@@ -1,5 +1,5 @@
-# the full local stack right nowis Postgres, user-service, api-gateway, Vite frontend.
-# From repo root: npm run dev, or: docker compose up --build
+# Run the full stack: npm run dev
+# Two separate MySQL servers: one for orders, one for the product catalog (product-service).
 
 services:
   postgres:
@@ -23,6 +23,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/user_service
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
     depends_on:
       postgres:
         condition: service_healthy
@@ -39,16 +40,54 @@ services:
     volumes:
       - order-mysql-data:/var/lib/mysql
       - ./backend/order-service/docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pmysql"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  product-mysql:
+    image: mysql:8.3.0
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql
+      MYSQL_DATABASE: product_service
+    ports:
+      - "3307:3306"
+    volumes:
+      - product-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pmysql"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  product-service:
+    build:
+      context: ./backend/product-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://product-mysql:3306/product_service?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&serverTimezone=UTC&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: mysql
+      JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+    depends_on:
+      product-mysql:
+        condition: service_healthy
+    ports:
+      - "8082:8082"
 
   api-gateway:
     build:
       context: ./backend/api-gateway
     environment:
       USER_SERVICE_URL: http://user-service:8081
+      PRODUCT_SERVICE_URL: http://product-service:8082
     ports:
       - "8080:8080"
     depends_on:
       - user-service
+      - product-service
 
   frontend:
     build:
@@ -62,3 +101,4 @@ services:
 
 volumes:
   order-mysql-data:
+  product-mysql-data:
