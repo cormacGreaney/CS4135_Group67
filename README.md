@@ -42,6 +42,7 @@ npm run down
 | `backend/api-gateway/`   | Spring Cloud Gateway       |
 | `backend/user-service/`  | Users, authentication, JWT |
 | `backend/Order-Service/` | Order service              |
+| `backend/payment-service`| Payment service            |
 | `docker-compose.yml`     | Local stack (repo root)    |
 
 
