@@ -7,5 +7,6 @@ import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order, Long>
 {
+    // Spring Data derives the query from the method name.
     List<Order> findByUserId(Long userId);
 }

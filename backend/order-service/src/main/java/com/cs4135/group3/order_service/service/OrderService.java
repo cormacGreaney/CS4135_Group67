@@ -1,36 +1,83 @@
 package com.cs4135.group3.order_service.service;
 
+import com.cs4135.group3.order_service.events.OrderCreatedEvent;
 import com.cs4135.group3.order_service.model.Order;
+import com.cs4135.group3.order_service.model.OrderItem;
+import com.cs4135.group3.order_service.model.OrderStatus;
 import com.cs4135.group3.order_service.repository.OrderRepository;
 import com.cs4135.group3.order_service.requests.OrderRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class OrderService 
-{
-    private final OrderRepository orderRepository;
+public class OrderService {
 
-    public void createOrder(OrderRequest orderRequest) 
+    private final OrderRepository orderRepository;
+    private final ApplicationEventPublisher eventPublisher;
+
+    public Order createOrder(OrderRequest orderRequest)
     {
-        // Logic to create an order
+        // Build the parent order first so each mapped OrderItem can reference it.
         Order order = new Order();
 
         order.setUserId(orderRequest.userId());
         order.setOrderNumber(UUID.randomUUID().toString());
-        order.setPrice(orderRequest.price());
-        order.setProductName(orderRequest.productName());
-        order.setQuantity(orderRequest.quantity());
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderedDate(LocalDateTime.now());
 
-        orderRepository.save(order);
+        // Convert incoming request items into persistent order items linked back to this order.
+        List<OrderItem> orderItems = orderRequest.items()
+                .stream()
+                .map(itemRequest -> {
+                    OrderItem item = new OrderItem();
+                    item.setProductId(itemRequest.productId());
+                    item.setProductName(itemRequest.productName());
+                    item.setPrice(itemRequest.price());
+                    item.setQuantity(itemRequest.quantity());
+                    item.setOrder(order);
+                    return item;
+                })
+                .toList();
+
+        order.setOrderItems(orderItems);
+
+        // Total price is the sum of each item's price multiplied by its quantity.
+        BigDecimal total = orderItems.stream()
+                .map(item -> item.getPrice()
+                        .multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        order.setTotalPrice(total);
+
+        Order savedOrder = orderRepository.save(order);
+
+        // Publish an event after persistence so downstream services can react to a new order.
+        eventPublisher.publishEvent(
+                new OrderCreatedEvent(
+                        savedOrder.getId(),
+                        savedOrder.getUserId(),
+                        savedOrder.getTotalPrice()
+                )
+        );
+
+        return savedOrder;
     }
 
     public List<Order> getOrdersByUserId(Long userId)
     {
         return orderRepository.findByUserId(userId);
+    }
+
+    public Order getOrderById(Long id)
+    {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
     }
 }
