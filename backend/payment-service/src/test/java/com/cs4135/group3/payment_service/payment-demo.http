@@ -1,0 +1,56 @@
+@baseUrl = http://localhost:8080
+@token = PASTE_JWT_HERE_FROM_AFTER_LOGIN
+
+### Register a demo user
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "demo1@example.com",
+  "password": "password12"
+}
+
+### Login and copy accessToken from response
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "demo1@example.com",
+  "password": "password12"
+}
+
+### Get current logged-in user
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{token}}
+
+### Get seeded payment by payment id
+GET {{baseUrl}}/api/payments/b0000000-0000-4000-8000-000000000001
+Authorization: Bearer {{token}}
+
+### Get seeded payment by order id
+GET {{baseUrl}}/api/payments/order/5001
+Authorization: Bearer {{token}}
+
+### Create a successful payment
+POST {{baseUrl}}/api/payments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "orderId": 9001,
+  "amount": 25.50,
+  "provider": "DemoProvider",
+  "forceFailure": false
+}
+
+### Create a failed payment
+POST {{baseUrl}}/api/payments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "orderId": 9002,
+  "amount": 19.99,
+  "provider": "DemoProvider",
+  "forceFailure": true
+}
