@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
+// Body for POST /api/products — what an admin sends to create a product
 public record ProductCreateRequest(
 		@NotBlank @Size(max = 255) String name,
 		@Size(max = 10_000) String description,

@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+// One row in the products table. "Soft delete" means we set deletedAt instead of erasing the row.
 @Entity
 @Table(name = "products")
 public class Product {
@@ -22,6 +23,7 @@ public class Product {
 	@GeneratedValue(strategy = GenerationType.UUID)
 	@JdbcTypeCode(SqlTypes.UUID)
 	@Column(nullable = false, columnDefinition = "BINARY(16)")
+	// Stored as 16 bytes in MySQL; matches the Flyway migration
 	private UUID id;
 
 	@Column(nullable = false)
@@ -39,9 +41,11 @@ public class Product {
 	@Column(nullable = false)
 	private String category;
 
+	// If this is set, the product is treated as deleted and won't show in the shop
 	@Column(name = "deleted_at")
 	private Instant deletedAt;
 
+	// Set automatically when the row is first saved
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
@@ -111,6 +115,7 @@ public class Product {
 
 	@PrePersist
 	void prePersist() {
+		// First time we save, fill in createdAt if it wasn't set
 		if (createdAt == null) {
 			createdAt = Instant.now();
 		}

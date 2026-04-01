@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+// Runs on every request. If the Authorization header has "Bearer <token>", we try to log the user in from that token.
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -40,6 +41,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 					SecurityContextHolder.getContext().setAuthentication(auth);
 				}
 				catch (JwtException ignored) {
+					// Wrong or expired token — act as if no one is logged in
 					SecurityContextHolder.clearContext();
 				}
 			}

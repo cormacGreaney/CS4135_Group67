@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+// All rules for listing, loading, creating, updating, and "deleting" products.
 @Service
 public class ProductService {
 
@@ -27,6 +28,7 @@ public class ProductService {
 		this.productRepository = productRepository;
 	}
 
+	// Paged product list with optional search, category, and price range
 	public Page<ProductResponse> list(
 			Pageable pageable,
 			String q,
@@ -41,6 +43,7 @@ public class ProductService {
 		return productRepository.findAll(spec, pageable).map(ProductMapper::toResponse);
 	}
 
+	// Single product for the product detail page (404 if missing or soft-deleted)
 	public ProductResponse getById(UUID id) {
 		return productRepository.findByIdAndDeletedAtIsNull(id)
 				.map(ProductMapper::toResponse)
@@ -49,6 +52,7 @@ public class ProductService {
 
 	@Transactional
 	public ProductResponse create(ProductCreateRequest req) {
+		// New product from the admin form
 		Product p = new Product();
 		p.setName(req.name().trim());
 		p.setDescription(req.description() != null ? req.description().trim() : null);
@@ -61,6 +65,7 @@ public class ProductService {
 
 	@Transactional
 	public ProductResponse update(UUID id, ProductUpdateRequest req) {
+		// Replace fields on an existing product
 		Product p = productRepository.findByIdAndDeletedAtIsNull(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 		p.setName(req.name().trim());
@@ -75,6 +80,7 @@ public class ProductService {
 	public void softDelete(UUID id) {
 		Product p = productRepository.findByIdAndDeletedAtIsNull(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+		// We don't remove the row from the database — we just mark it deleted
 		p.setDeletedAt(Instant.now());
 	}
 }

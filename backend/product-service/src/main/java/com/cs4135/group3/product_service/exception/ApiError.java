@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import java.util.Map;
 
+// Standard JSON shape when something goes wrong (status, message, optional field errors).
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public record ApiError(
 		Instant timestamp,

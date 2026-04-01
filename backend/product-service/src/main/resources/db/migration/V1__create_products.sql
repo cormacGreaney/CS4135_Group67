@@ -1,3 +1,5 @@
+-- First version of the products table. Run automatically when the app starts (Flyway).
+-- Product ids are stored as 16-byte UUIDs to match the Java Product class.
 CREATE TABLE products (
     id BINARY(16) NOT NULL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,

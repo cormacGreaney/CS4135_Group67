@@ -1,4 +1,5 @@
-# From repo root: npm run dev (docker compose up --build)
+# Run the full stack: npm run dev
+# Two separate MySQL servers: one for orders, one for the product catalog (product-service).
 
 services:
   postgres:

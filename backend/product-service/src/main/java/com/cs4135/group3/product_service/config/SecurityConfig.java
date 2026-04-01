@@ -16,6 +16,9 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+// Who can call what:
+// - Anyone can browse products (GET).
+// - Only admins can add, edit, or delete. That comes from the role on the JWT after you log in via user-service.
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -26,6 +29,7 @@ public class SecurityConfig {
 			JwtAuthenticationFilter jwtAuthenticationFilter,
 			ObjectMapper objectMapper) throws Exception {
 		http
+				// REST API — no browser form posts, so CSRF off. Sessions off; we use JWT on each request.
 				.csrf(csrf -> csrf.disable())
 				.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.exceptionHandling(ex -> ex
@@ -33,7 +37,9 @@ public class SecurityConfig {
 						.accessDeniedHandler(accessDeniedHandler(objectMapper)))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/error").permitAll()
+						// No login needed to list or view products
 						.requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
+						// Add, change, or remove products — logged-in admin only
 						.requestMatchers(HttpMethod.POST, "/api/products").hasRole("ADMINISTRATOR")
 						.requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMINISTRATOR")
 						.requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMINISTRATOR")
@@ -42,6 +48,7 @@ public class SecurityConfig {
 		return http.build();
 	}
 
+	// When someone is logged in but not an admin, return JSON 403 instead of an HTML error page
 	private static AccessDeniedHandler accessDeniedHandler(ObjectMapper objectMapper) {
 		return (request, response, accessDeniedException) -> {
 			response.setStatus(HttpStatus.FORBIDDEN.value());

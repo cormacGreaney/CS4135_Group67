@@ -7,6 +7,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+// Helper for tests: make a login-style token. The secret has to match application-test.properties.
 final class JwtTestTokens {
 
 	private static final String SECRET = "test-secret-key-for-jwt-must-be-at-least-32-bytes-long!!";

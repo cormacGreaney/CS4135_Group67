@@ -1,3 +1,4 @@
+-- Sample rows so local dev and demos have something to show in the catalog.
 INSERT INTO products (id, name, description, price, stock_quantity, category, deleted_at, created_at)
 VALUES
     (UUID_TO_BIN('a0000000-0000-4000-8000-000000000001'), 'Wireless Mouse', 'Ergonomic 2.4GHz mouse', 29.99, 120, 'Electronics', NULL, CURRENT_TIMESTAMP(6)),

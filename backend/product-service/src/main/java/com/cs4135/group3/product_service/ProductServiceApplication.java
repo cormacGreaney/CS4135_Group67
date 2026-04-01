@@ -5,6 +5,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
+// Product catalog API. Data lives in MySQL; table structure comes from Flyway scripts.
+// Logins and tokens come from user-service — we use the same signing key to check those tokens.
 @SpringBootApplication
 @EnableConfigurationProperties(JwtProperties.class)
 public class ProductServiceApplication {

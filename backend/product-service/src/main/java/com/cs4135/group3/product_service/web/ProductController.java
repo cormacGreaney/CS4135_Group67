@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+// HTTP API for the catalog. Clients usually call through the gateway at :8080, not this port directly.
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
@@ -40,28 +41,33 @@ public class ProductController {
 			@RequestParam(required = false) String category,
 			@RequestParam(required = false) BigDecimal minPrice,
 			@RequestParam(required = false) BigDecimal maxPrice) {
+		// Query params: q (name search), category, minPrice, maxPrice — all optional
 		return productService.list(pageable, q, category, minPrice, maxPrice);
 	}
 
 	@GetMapping("/{id}")
 	public ProductResponse get(@PathVariable UUID id) {
+		// One product by id
 		return productService.getById(id);
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public ProductResponse create(@Valid @RequestBody ProductCreateRequest body) {
+		// Admin only (enforced in SecurityConfig)
 		return productService.create(body);
 	}
 
 	@PutMapping("/{id}")
 	public ProductResponse update(@PathVariable UUID id, @Valid @RequestBody ProductUpdateRequest body) {
+		// Admin only
 		return productService.update(id, body);
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void delete(@PathVariable UUID id) {
+		// Admin only — marks deleted, does not wipe the row
 		productService.softDelete(id);
 	}
 }

@@ -14,6 +14,8 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+// Checks that a JWT was signed with our shared key and turns it into a Spring "logged-in user" object.
+// Expects the same shape as user-service: user id in "sub", role in "role" (e.g. ADMINISTRATOR).
 @Service
 public class TokenService {
 
@@ -25,6 +27,7 @@ public class TokenService {
 	}
 
 	public Authentication parseAuthentication(String token) throws JwtException {
+		// Verify signature and read claims
 		Claims claims = Jwts.parser()
 				.verifyWith(secretKey)
 				.build()

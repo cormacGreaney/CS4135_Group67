@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// End-to-end tests: real MySQL in Docker (Testcontainers), fake JWTs signed with the test secret.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Testcontainers

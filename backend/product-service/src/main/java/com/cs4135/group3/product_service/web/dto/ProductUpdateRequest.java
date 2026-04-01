@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
+// Body for PUT /api/products/{id} — full replacement of the product fields
 public record ProductUpdateRequest(
 		@NotBlank @Size(max = 255) String name,
 		@Size(max = 10_000) String description,

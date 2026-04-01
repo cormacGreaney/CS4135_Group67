@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import './App.css'
 
+// All API calls go through the gateway (8080), not straight to each microservice.
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 
 function App() {
@@ -10,6 +11,7 @@ function App() {
   const [me, setMe] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  // Product list from the catalog API (no login needed to view)
   const [products, setProducts] = useState(null)
   const [productQuery, setProductQuery] = useState('')
   const [productsError, setProductsError] = useState('')
@@ -61,6 +63,7 @@ function App() {
   }
 
   const loadProducts = useCallback(async (q) => {
+    // Pass a search string to filter products by name (server does the filtering)
     setProductsError('')
     setBusy(true)
     try {

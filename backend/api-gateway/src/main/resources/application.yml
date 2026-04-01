@@ -27,6 +27,7 @@ spring:
               uri: ${USER_SERVICE_URL:http://localhost:8081}
               predicates:
                 - Path=/api/users/**
+            # Send /api/products/* to the product service (browse is open; changes need a logged-in admin token)
             - id: product-service-catalog
               uri: ${PRODUCT_SERVICE_URL:http://localhost:8082}
               predicates:

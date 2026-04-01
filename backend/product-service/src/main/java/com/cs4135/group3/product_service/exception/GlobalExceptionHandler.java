@@ -12,11 +12,13 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.HashMap;
 import java.util.Map;
 
+// Turns exceptions into clean JSON instead of a stack trace page.
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
+		// Bad request body — e.g. missing name or invalid price
 		Map<String, String> fieldErrors = new HashMap<>();
 		for (FieldError fe : ex.getBindingResult().getFieldErrors()) {
 			fieldErrors.put(fe.getField(), fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "Invalid");
@@ -32,6 +34,7 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(ResourceNotFoundException.class)
 	public ResponseEntity<ApiError> handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
+		// Unknown id or product was soft-deleted
 		ApiError body = ApiError.of(
 				HttpStatus.NOT_FOUND.value(),
 				"Not Found",
@@ -42,6 +45,7 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(ResponseStatusException.class)
 	public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
+		// Catch-all for other HTTP-style errors we throw in code
 		HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
 		int code = status != null ? status.value() : ex.getStatusCode().value();
 		String reason = status != null ? status.getReasonPhrase() : "Error";
