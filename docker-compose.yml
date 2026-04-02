@@ -44,7 +44,7 @@ services:
     expose:
       - "8081"
 
-  order-service:
+  order-mysql:
     image: mysql:8.3.0
     environment:
       MYSQL_ROOT_PASSWORD: mysql
@@ -60,6 +60,19 @@ services:
       timeout: 5s
       retries: 30
       start_period: 40s
+
+  order-service:
+    build:
+      context: ./backend/order-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_service?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&serverTimezone=UTC&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: mysql
+    depends_on:
+      order-mysql:
+        condition: service_healthy
+    ports:
+      - "8085:8085"
 
   product-mysql:
     image: mysql:8.3.0
@@ -110,12 +123,14 @@ services:
       context: ./backend/api-gateway
     environment:
       USER_SERVICE_URL: http://user-service:8081
+      ORDER_SERVICE_URL: http://order-service:8085
       PRODUCT_SERVICE_URL: http://product-service:8082
       PAYMENT_SERVICE_URL: http://payment-service:8084
     ports:
       - "8080:8080"
     depends_on:
       - user-service
+      - order-service
       - product-service
       - payment-service
 
