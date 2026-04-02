@@ -1,6 +1,7 @@
 package com.cs4135.group3.order_service.controller;
 
 import com.cs4135.group3.order_service.model.Order;
+import com.cs4135.group3.order_service.model.OrderStatus;
 import com.cs4135.group3.order_service.requests.OrderRequest;
 import com.cs4135.group3.order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -35,5 +36,19 @@ public class OrderController
     public Order getOrderById(@PathVariable Long id)
     {
         return orderService.getOrderById(id);
+    }
+
+    @PutMapping("/{orderId}/status")
+    public Order updateStatus(
+            @PathVariable Long orderId,
+            @RequestParam OrderStatus status)
+    {
+        return orderService.updateOrderStatus(orderId, status);
+    }
+
+    @PutMapping("/{orderId}/cancel")
+    public Order cancelOrder(@PathVariable Long orderId)
+    {
+        return orderService.cancelOrder(orderId);
     }
 }
