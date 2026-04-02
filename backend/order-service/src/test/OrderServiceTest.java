@@ -271,6 +271,42 @@ class OrderServiceTest {
     }
 
     @Test
+    void createOrderWithEmptyItemsSetsZeroTotal() {
+        // Arrange an order with no line items to cover the reduction starting from BigDecimal.ZERO.
+        stubSaveReturnsPersistedOrder();
+        OrderRequest request = new OrderRequest(
+                null,
+                55L,
+                null,
+                List.of()
+        );
+
+        // Act by creating the empty order.
+        Order savedOrder = orderService.createOrder(request);
+
+        // The service should preserve the empty item list and compute a zero total.
+        assertNotNull(savedOrder);
+        assertTrue(savedOrder.getOrderItems().isEmpty());
+        assertEquals(BigDecimal.ZERO, savedOrder.getTotalPrice());
+        verify(orderRepository).save(any(Order.class));
+        verify(eventPublisher).publishEvent(any(OrderCreatedEvent.class));
+    }
+
+    @Test
+    void createOrderThrowsWhenItemsAreNull() {
+        // Arrange a request with null items to cover the current null-handling behavior.
+        OrderRequest request = new OrderRequest(
+                null,
+                66L,
+                null,
+                null
+        );
+
+        // The current implementation streams directly over items, so null should fail fast.
+        assertThrows(NullPointerException.class, () -> orderService.createOrder(request));
+    }
+
+    @Test
     void getOrdersByUserIdReturnsOnlyOrdersForRequestedUser() {
         // Arrange repository results for one user so the service can delegate the filtering query.
         Order firstOrder = new Order();
@@ -326,5 +362,64 @@ class OrderServiceTest {
         RuntimeException exception = assertThrows(RuntimeException.class, () -> orderService.getOrderById(404L));
         assertEquals("Order not found", exception.getMessage());
         verify(orderRepository).findById(404L);
+    }
+
+    @Test
+    void updateOrderStatusUpdatesAndSavesOrder() {
+        // Arrange an existing order so the service can update its status and persist the change.
+        Order existingOrder = new Order();
+        existingOrder.setId(10L);
+        existingOrder.setStatus(OrderStatus.PENDING);
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(existingOrder));
+        when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
+
+        // Act by changing the order status.
+        Order updatedOrder = orderService.updateOrderStatus(10L, OrderStatus.PAID);
+
+        // The order should be updated in memory and then saved through the repository.
+        assertEquals(OrderStatus.PAID, updatedOrder.getStatus());
+        verify(orderRepository).findById(10L);
+        verify(orderRepository).save(existingOrder);
+    }
+
+    @Test
+    void updateOrderStatusThrowsWhenOrderDoesNotExist() {
+        // Arrange a missing order id to cover the not-found branch.
+        when(orderRepository.findById(999L)).thenReturn(Optional.empty());
+
+        // Updating a missing order should reuse the same not-found exception message.
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> orderService.updateOrderStatus(999L, OrderStatus.PAID));
+        assertEquals("Order not found", exception.getMessage());
+        verify(orderRepository).findById(999L);
+    }
+
+    @Test
+    void cancelOrderSetsCancelledStatusAndSavesOrder() {
+        // Arrange an existing order so cancelOrder can update it to the cancelled state.
+        Order existingOrder = new Order();
+        existingOrder.setId(20L);
+        existingOrder.setStatus(OrderStatus.PENDING);
+        when(orderRepository.findById(20L)).thenReturn(Optional.of(existingOrder));
+        when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
+
+        // Act by cancelling the order.
+        Order cancelledOrder = orderService.cancelOrder(20L);
+
+        // The service should mark the order as cancelled and persist that change.
+        assertEquals(OrderStatus.CANCELLED, cancelledOrder.getStatus());
+        verify(orderRepository).findById(20L);
+        verify(orderRepository).save(existingOrder);
+    }
+
+    @Test
+    void cancelOrderThrowsWhenOrderDoesNotExist() {
+        // Arrange a missing order id to cover the not-found branch.
+        when(orderRepository.findById(888L)).thenReturn(Optional.empty());
+
+        // Cancelling a missing order should throw the current not-found exception.
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> orderService.cancelOrder(888L));
+        assertEquals("Order not found", exception.getMessage());
+        verify(orderRepository).findById(888L);
     }
 }
