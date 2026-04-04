@@ -22,6 +22,10 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.cs4135.group3.order_service.events.OrderCreatedEvent;
 import com.cs4135.group3.order_service.messaging.OrderCreatedRabbitPublisher;
@@ -35,6 +39,10 @@ import com.cs4135.group3.order_service.service.OrderService;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
+
+    private static final Authentication CUSTOMER_AUTH = auth("42", "ROLE_CUSTOMER");
+    private static final Authentication OTHER_CUSTOMER_AUTH = auth("123", "ROLE_CUSTOMER");
+    private static final Authentication ADMIN_AUTH = auth("7", "ROLE_ADMINISTRATOR");
 
     @Mock
     private OrderRepository orderRepository;
@@ -56,82 +64,58 @@ class OrderServiceTest {
         }).when(orderRepository).save(any(Order.class));
     }
 
+    private static Authentication auth(String userId, String role) {
+        return new UsernamePasswordAuthenticationToken(
+                userId,
+                null,
+                List.of(new SimpleGrantedAuthority(role)));
+    }
+
     @Test
     void createOrderMapsRequestAndSavesOrder() {
-        // Arrange a single-item request so we can verify user mapping, item mapping, and total calculation.
         stubSaveReturnsPersistedOrder();
         OrderRequest request = new OrderRequest(
                 null,
                 42L,
                 null,
-                List.of(
-                        new OrderItemRequest(
-                                1L,
-                                "Mouse",
-                                new BigDecimal("49.99"),
-                                3
-                        )
-                )
+                List.of(new OrderItemRequest(1L, "Mouse", new BigDecimal("49.99"), 3))
         );
 
-        // Act by creating the order through the service.
-        orderService.createOrder(request);
+        orderService.createOrder(request, CUSTOMER_AUTH);
 
-        // Capture the Order passed to the repository so we can inspect the saved state.
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
 
         Order savedOrder = orderCaptor.getValue();
-
-        // The service should copy the user id and leave the request id unset before persistence.
         assertEquals(42L, savedOrder.getUserId());
         assertEquals(999L, savedOrder.getId());
-
-        // The service should always generate a new UUID order number.
         assertNotNull(savedOrder.getOrderNumber());
         assertDoesNotThrow(() -> UUID.fromString(savedOrder.getOrderNumber()));
-
-        // The request's items should be converted into persistent OrderItem objects.
         assertEquals(1, savedOrder.getOrderItems().size());
 
         OrderItem item = savedOrder.getOrderItems().get(0);
-
         assertEquals("Mouse", item.getProductName());
         assertEquals(new BigDecimal("49.99"), item.getPrice());
         assertEquals(3, item.getQuantity());
-
-        // Total price should equal item price multiplied by quantity.
         assertEquals(new BigDecimal("149.97"), savedOrder.getTotalPrice());
     }
 
     @Test
     void createOrderGeneratesNewOrderNumber() {
-        // Arrange a request with an existing order number to confirm the service replaces it.
         stubSaveReturnsPersistedOrder();
         OrderRequest request = new OrderRequest(
                 null,
-                77L,
+                7L,
                 "request-order-number",
-                List.of(
-                        new OrderItemRequest(
-                                2L,
-                                "Desk Lamp",
-                                new BigDecimal("15.50"),
-                                1
-                        )
-                )
+                List.of(new OrderItemRequest(2L, "Desk Lamp", new BigDecimal("15.50"), 1))
         );
 
-        // Act by creating the order.
-        orderService.createOrder(request);
+        orderService.createOrder(request, ADMIN_AUTH);
 
-        // Capture the saved order and verify the generated order number is still a UUID.
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
 
         Order savedOrder = orderCaptor.getValue();
-
-        // The service should not rely on any client-supplied order number.
         assertNotNull(savedOrder.getOrderNumber());
         assertNotEquals("request-order-number", savedOrder.getOrderNumber());
         assertDoesNotThrow(() -> UUID.fromString(savedOrder.getOrderNumber()));
@@ -139,76 +123,44 @@ class OrderServiceTest {
 
     @Test
     void createOrderSavesExactlyOneOrder() {
-        // Arrange a valid request and check that the service performs only one repository save.
         stubSaveReturnsPersistedOrder();
         OrderRequest request = new OrderRequest(
                 null,
                 11L,
                 null,
-                List.of(
-                        new OrderItemRequest(
-                                3L,
-                                "Keyboard",
-                                new BigDecimal("120.00"),
-                                2
-                        )
-                )
+                List.of(new OrderItemRequest(3L, "Keyboard", new BigDecimal("120.00"), 2))
         );
 
-        // Act by creating the order once.
-        orderService.createOrder(request);
+        orderService.createOrder(request, auth("11", "ROLE_CUSTOMER"));
 
-        // Only one save should occur and there should be no extra repository calls.
-        verify(orderRepository).save(org.mockito.ArgumentMatchers.any(Order.class));
+        verify(orderRepository).save(any(Order.class));
         verifyNoMoreInteractions(orderRepository);
     }
 
     @Test
     void createOrderWithMultipleItemsCalculatesTotalCorrectly() {
-        // Arrange multiple items so the total must be calculated across more than one line item.
         stubSaveReturnsPersistedOrder();
         OrderRequest request = new OrderRequest(
                 null,
                 42L,
                 null,
                 List.of(
-                        new OrderItemRequest(
-                                1L,
-                                "Mouse",
-                                new BigDecimal("20.00"),
-                                2
-                        ),
-                        new OrderItemRequest(
-                                2L,
-                                "Keyboard",
-                                new BigDecimal("50.00"),
-                                1
-                        )
-                )
+                        new OrderItemRequest(1L, "Mouse", new BigDecimal("20.00"), 2),
+                        new OrderItemRequest(2L, "Keyboard", new BigDecimal("50.00"), 1))
         );
 
-        // Act by creating the order.
-        orderService.createOrder(request);
+        orderService.createOrder(request, CUSTOMER_AUTH);
 
-        // Capture the saved order so we can inspect the generated order items and final total.
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
 
         Order savedOrder = orderCaptor.getValue();
-
-        // Both items should be preserved on the order.
         assertEquals(2, savedOrder.getOrderItems().size());
-
-        // Total should equal (20.00 * 2) + (50.00 * 1).
-        assertEquals(
-                new BigDecimal("90.00"),
-                savedOrder.getTotalPrice()
-        );
+        assertEquals(new BigDecimal("90.00"), savedOrder.getTotalPrice());
     }
 
     @Test
     void createOrderSetsPendingStatusAndOrderedDate() {
-        // Arrange a valid request and capture the saved order metadata.
         stubSaveReturnsPersistedOrder();
         OrderRequest request = new OrderRequest(
                 null,
@@ -217,10 +169,8 @@ class OrderServiceTest {
                 List.of(new OrderItemRequest(1L, "Headphones", new BigDecimal("35.00"), 1))
         );
 
-        // Act by creating the order.
-        orderService.createOrder(request);
+        orderService.createOrder(request, auth("12", "ROLE_CUSTOMER"));
 
-        // The service should mark new orders as pending and timestamp them immediately.
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
 
@@ -232,7 +182,6 @@ class OrderServiceTest {
 
     @Test
     void createOrderLinksEachOrderItemBackToParentOrder() {
-        // Arrange a multi-item request so every mapped OrderItem should point back to the same parent order.
         stubSaveReturnsPersistedOrder();
         OrderRequest request = new OrderRequest(
                 null,
@@ -240,14 +189,11 @@ class OrderServiceTest {
                 null,
                 List.of(
                         new OrderItemRequest(1L, "Mouse", new BigDecimal("20.00"), 1),
-                        new OrderItemRequest(2L, "Keyboard", new BigDecimal("45.00"), 1)
-                )
+                        new OrderItemRequest(2L, "Keyboard", new BigDecimal("45.00"), 1))
         );
 
-        // Act by creating the order.
-        orderService.createOrder(request);
+        orderService.createOrder(request, auth("21", "ROLE_CUSTOMER"));
 
-        // Every saved item should keep the back-reference required by the JPA relationship.
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
 
@@ -257,7 +203,6 @@ class OrderServiceTest {
 
     @Test
     void createOrderPublishesOrderCreatedEvent() {
-        // Arrange a valid request and capture the event emitted after persistence.
         stubSaveReturnsPersistedOrder();
         OrderRequest request = new OrderRequest(
                 null,
@@ -266,10 +211,8 @@ class OrderServiceTest {
                 List.of(new OrderItemRequest(5L, "Webcam", new BigDecimal("80.00"), 2))
         );
 
-        // Act by creating the order.
-        orderService.createOrder(request);
+        orderService.createOrder(request, auth("33", "ROLE_CUSTOMER"));
 
-        // The published event should include the persisted order id, owning user, and final total.
         ArgumentCaptor<OrderCreatedEvent> eventCaptor = ArgumentCaptor.forClass(OrderCreatedEvent.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
 
@@ -277,25 +220,16 @@ class OrderServiceTest {
         assertEquals(999L, event.orderId());
         assertEquals(33L, event.userId());
         assertEquals(new BigDecimal("160.00"), event.totalAmount());
-
         verify(orderCreatedRabbitPublisher).publish(event);
     }
 
     @Test
     void createOrderWithEmptyItemsSetsZeroTotal() {
-        // Arrange an order with no line items to cover the reduction starting from BigDecimal.ZERO.
         stubSaveReturnsPersistedOrder();
-        OrderRequest request = new OrderRequest(
-                null,
-                55L,
-                null,
-                List.of()
-        );
+        OrderRequest request = new OrderRequest(null, 55L, null, List.of());
 
-        // Act by creating the empty order.
-        Order savedOrder = orderService.createOrder(request);
+        Order savedOrder = orderService.createOrder(request, auth("55", "ROLE_CUSTOMER"));
 
-        // The service should preserve the empty item list and compute a zero total.
         assertNotNull(savedOrder);
         assertTrue(savedOrder.getOrderItems().isEmpty());
         assertEquals(BigDecimal.ZERO, savedOrder.getTotalPrice());
@@ -305,21 +239,30 @@ class OrderServiceTest {
 
     @Test
     void createOrderThrowsWhenItemsAreNull() {
-        // Arrange a request with null items to cover the current null-handling behavior.
+        OrderRequest request = new OrderRequest(null, 66L, null, null);
+
+        assertThrows(NullPointerException.class, () -> orderService.createOrder(request, auth("66", "ROLE_CUSTOMER")));
+    }
+
+    @Test
+    void createOrderRejectsMismatchedUserIdInRequest() {
         OrderRequest request = new OrderRequest(
                 null,
-                66L,
+                999L,
                 null,
-                null
+                List.of(new OrderItemRequest(1L, "Mouse", new BigDecimal("49.99"), 1))
         );
 
-        // The current implementation streams directly over items, so null should fail fast.
-        assertThrows(NullPointerException.class, () -> orderService.createOrder(request));
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.createOrder(request, CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("You can only create orders for yourself", exception.getReason());
     }
 
     @Test
     void getOrdersByUserIdReturnsOnlyOrdersForRequestedUser() {
-        // Arrange repository results for one user so the service can delegate the filtering query.
         Order firstOrder = new Order();
         firstOrder.setId(1L);
         firstOrder.setUserId(42L);
@@ -328,109 +271,167 @@ class OrderServiceTest {
         secondOrder.setId(2L);
         secondOrder.setUserId(42L);
 
-        Order thirdOrder = new Order();
-        thirdOrder.setId(3L);
-        thirdOrder.setUserId(123L);
+        when(orderRepository.findByUserId(42L)).thenReturn(List.of(firstOrder, secondOrder));
 
-        when(orderRepository.findByUserId(42L))
-                .thenReturn(List.of(firstOrder, secondOrder));
+        List<Order> userOrders = orderService.getOrdersByUserId(42L, CUSTOMER_AUTH);
 
-        // Act by retrieving the selected user's orders.
-        List<Order> userOrders = orderService.getOrdersByUserId(42L);
-
-        // Only the orders for user 42 should be returned.
         assertEquals(2, userOrders.size());
-        assertTrue(userOrders.stream()
-                .allMatch(order -> order.getUserId().equals(42L)));
+        assertTrue(userOrders.stream().allMatch(order -> order.getUserId().equals(42L)));
+        verify(orderRepository).findByUserId(42L);
+    }
 
-        // Verify the service delegated to the correct repository method.
+    @Test
+    void getOrdersByUserIdRejectsOtherCustomer() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.getOrdersByUserId(42L, OTHER_CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("You can only view your own orders", exception.getReason());
+    }
+
+    @Test
+    void getOrdersByUserIdAllowsAdmin() {
+        when(orderRepository.findByUserId(42L)).thenReturn(List.of());
+
+        orderService.getOrdersByUserId(42L, ADMIN_AUTH);
+
         verify(orderRepository).findByUserId(42L);
     }
 
     @Test
     void getOrderByIdReturnsOrderWhenFound() {
-        // Arrange a stored order so the service can return it unchanged.
         Order order = new Order();
         order.setId(7L);
         order.setUserId(42L);
         when(orderRepository.findById(7L)).thenReturn(Optional.of(order));
 
-        // Act by retrieving the order by id.
-        Order result = orderService.getOrderById(7L);
+        Order result = orderService.getOrderById(7L, CUSTOMER_AUTH);
 
-        // The found order should be returned directly.
         assertEquals(7L, result.getId());
         assertEquals(42L, result.getUserId());
         verify(orderRepository).findById(7L);
     }
 
     @Test
+    void getOrderByIdRejectsOtherCustomer() {
+        Order order = new Order();
+        order.setId(7L);
+        order.setUserId(42L);
+        when(orderRepository.findById(7L)).thenReturn(Optional.of(order));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.getOrderById(7L, OTHER_CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("You can only view your own orders", exception.getReason());
+    }
+
+    @Test
     void getOrderByIdThrowsWhenOrderDoesNotExist() {
-        // Arrange a missing id so the service follows its error path.
         when(orderRepository.findById(404L)).thenReturn(Optional.empty());
 
-        // Missing orders should throw the current runtime exception message.
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> orderService.getOrderById(404L));
-        assertEquals("Order not found", exception.getMessage());
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.getOrderById(404L, CUSTOMER_AUTH));
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Order not found", exception.getReason());
         verify(orderRepository).findById(404L);
     }
 
     @Test
     void updateOrderStatusUpdatesAndSavesOrder() {
-        // Arrange an existing order so the service can update its status and persist the change.
         Order existingOrder = new Order();
         existingOrder.setId(10L);
         existingOrder.setStatus(OrderStatus.PENDING);
         when(orderRepository.findById(10L)).thenReturn(Optional.of(existingOrder));
         when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
 
-        // Act by changing the order status.
-        Order updatedOrder = orderService.updateOrderStatus(10L, OrderStatus.PAID);
+        Order updatedOrder = orderService.updateOrderStatus(10L, OrderStatus.PAID, ADMIN_AUTH);
 
-        // The order should be updated in memory and then saved through the repository.
         assertEquals(OrderStatus.PAID, updatedOrder.getStatus());
         verify(orderRepository).findById(10L);
         verify(orderRepository).save(existingOrder);
     }
 
     @Test
+    void updateOrderStatusRejectsNonAdmin() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.updateOrderStatus(10L, OrderStatus.PAID, CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("Administrator role required", exception.getReason());
+    }
+
+    @Test
     void updateOrderStatusThrowsWhenOrderDoesNotExist() {
-        // Arrange a missing order id to cover the not-found branch.
         when(orderRepository.findById(999L)).thenReturn(Optional.empty());
 
-        // Updating a missing order should reuse the same not-found exception message.
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> orderService.updateOrderStatus(999L, OrderStatus.PAID));
-        assertEquals("Order not found", exception.getMessage());
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.updateOrderStatus(999L, OrderStatus.PAID, ADMIN_AUTH));
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Order not found", exception.getReason());
         verify(orderRepository).findById(999L);
     }
 
     @Test
     void cancelOrderSetsCancelledStatusAndSavesOrder() {
-        // Arrange an existing order so cancelOrder can update it to the cancelled state.
         Order existingOrder = new Order();
         existingOrder.setId(20L);
+        existingOrder.setUserId(42L);
         existingOrder.setStatus(OrderStatus.PENDING);
         when(orderRepository.findById(20L)).thenReturn(Optional.of(existingOrder));
         when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
 
-        // Act by cancelling the order.
-        Order cancelledOrder = orderService.cancelOrder(20L);
+        Order cancelledOrder = orderService.cancelOrder(20L, CUSTOMER_AUTH);
 
-        // The service should mark the order as cancelled and persist that change.
         assertEquals(OrderStatus.CANCELLED, cancelledOrder.getStatus());
         verify(orderRepository).findById(20L);
         verify(orderRepository).save(existingOrder);
     }
 
     @Test
+    void cancelOrderAllowsAdmin() {
+        Order existingOrder = new Order();
+        existingOrder.setId(20L);
+        existingOrder.setUserId(42L);
+        existingOrder.setStatus(OrderStatus.PENDING);
+        when(orderRepository.findById(20L)).thenReturn(Optional.of(existingOrder));
+        when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
+
+        Order cancelledOrder = orderService.cancelOrder(20L, ADMIN_AUTH);
+
+        assertEquals(OrderStatus.CANCELLED, cancelledOrder.getStatus());
+        verify(orderRepository).save(existingOrder);
+    }
+
+    @Test
+    void cancelOrderRejectsOtherCustomer() {
+        Order existingOrder = new Order();
+        existingOrder.setId(20L);
+        existingOrder.setUserId(42L);
+        when(orderRepository.findById(20L)).thenReturn(Optional.of(existingOrder));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.cancelOrder(20L, OTHER_CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("You can only cancel your own orders", exception.getReason());
+    }
+
+    @Test
     void cancelOrderThrowsWhenOrderDoesNotExist() {
-        // Arrange a missing order id to cover the not-found branch.
         when(orderRepository.findById(888L)).thenReturn(Optional.empty());
 
-        // Cancelling a missing order should throw the current not-found exception.
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> orderService.cancelOrder(888L));
-        assertEquals("Order not found", exception.getMessage());
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.cancelOrder(888L, CUSTOMER_AUTH));
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Order not found", exception.getReason());
         verify(orderRepository).findById(888L);
     }
 }
