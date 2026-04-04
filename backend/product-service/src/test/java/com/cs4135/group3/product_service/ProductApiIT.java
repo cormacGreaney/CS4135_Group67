@@ -20,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.math.BigDecimal;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -160,5 +161,13 @@ class ProductApiIT {
 				.andExpect(status().isNoContent());
 
 		mockMvc.perform(get("/api/products/" + id)).andExpect(status().isNotFound());
+	}
+
+	@Test
+	@Order(8)
+	void listRejectsMinPriceGreaterThanMaxPrice() throws Exception {
+		mockMvc.perform(get("/api/products").param("minPrice", "100").param("maxPrice", "50"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("minPrice must be less than or equal to maxPrice"));
 	}
 }
