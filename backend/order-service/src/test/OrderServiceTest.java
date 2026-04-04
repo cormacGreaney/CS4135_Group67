@@ -1,4 +1,30 @@
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+
 import com.cs4135.group3.order_service.events.OrderCreatedEvent;
+import com.cs4135.group3.order_service.messaging.OrderCreatedRabbitPublisher;
 import com.cs4135.group3.order_service.model.Order;
 import com.cs4135.group3.order_service.model.OrderItem;
 import com.cs4135.group3.order_service.model.OrderStatus;
@@ -6,26 +32,6 @@ import com.cs4135.group3.order_service.repository.OrderRepository;
 import com.cs4135.group3.order_service.requests.OrderItemRequest;
 import com.cs4135.group3.order_service.requests.OrderRequest;
 import com.cs4135.group3.order_service.service.OrderService;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.context.ApplicationEventPublisher;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -35,6 +41,9 @@ class OrderServiceTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private OrderCreatedRabbitPublisher orderCreatedRabbitPublisher;
 
     @InjectMocks
     private OrderService orderService;
@@ -268,6 +277,8 @@ class OrderServiceTest {
         assertEquals(999L, event.orderId());
         assertEquals(33L, event.userId());
         assertEquals(new BigDecimal("160.00"), event.totalAmount());
+
+        verify(orderCreatedRabbitPublisher).publish(event);
     }
 
     @Test

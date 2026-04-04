@@ -1,19 +1,22 @@
 package com.cs4135.group3.order_service.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+
 import com.cs4135.group3.order_service.events.OrderCreatedEvent;
+import com.cs4135.group3.order_service.messaging.OrderCreatedRabbitPublisher;
 import com.cs4135.group3.order_service.model.Order;
 import com.cs4135.group3.order_service.model.OrderItem;
 import com.cs4135.group3.order_service.model.OrderStatus;
 import com.cs4135.group3.order_service.repository.OrderRepository;
 import com.cs4135.group3.order_service.requests.OrderRequest;
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +24,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final OrderCreatedRabbitPublisher orderCreatedRabbitPublisher;
 
     public Order createOrder(OrderRequest orderRequest)
     {
@@ -58,14 +62,16 @@ public class OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
-        // Publish an event after persistence so downstream services can react to a new order.
-        eventPublisher.publishEvent(
-                new OrderCreatedEvent(
-                        savedOrder.getId(),
-                        savedOrder.getUserId(),
-                        savedOrder.getTotalPrice()
-                )
-        );
+        OrderCreatedEvent created = new OrderCreatedEvent(
+                savedOrder.getId(),
+                savedOrder.getUserId(),
+                savedOrder.getTotalPrice());
+
+        // In-process listeners (e.g. logging) stay local to this JVM.
+        eventPublisher.publishEvent(created);
+
+        // Async integration: payment-service will consume this from RabbitMQ (next steps).
+        orderCreatedRabbitPublisher.publish(created);
 
         return savedOrder;
     }
