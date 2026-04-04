@@ -1,4 +1,4 @@
-package com.cs4135.group3.order_service.messaging;
+package com.cs4135.group3.payment_service.messaging;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,8 +19,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMqConfig {
 
-	private static final String PAYMENT_COMPLETED_PAYMENT_FQCN =
-			"com.cs4135.group3.payment_service.messaging.PaymentCompletedMessage";
+	private static final String ORDER_CREATED_EVENT_FQCN = "com.cs4135.group3.order_service.events.OrderCreatedEvent";
 
 	@Bean
 	TopicExchange ecommerceTopicExchange() {
@@ -28,15 +27,15 @@ public class RabbitMqConfig {
 	}
 
 	@Bean
-	Queue orderPaymentCompletedQueue() {
-		return new Queue(MessagingConstants.ORDER_PAYMENT_COMPLETED_QUEUE, true);
+	Queue paymentOrderCreatedQueue() {
+		return new Queue(MessagingConstants.PAYMENT_ORDER_CREATED_QUEUE, true);
 	}
 
 	@Bean
-	Binding orderPaymentCompletedBinding(TopicExchange ecommerceTopicExchange, Queue orderPaymentCompletedQueue) {
-		return BindingBuilder.bind(orderPaymentCompletedQueue)
+	Binding paymentOrderCreatedBinding(TopicExchange ecommerceTopicExchange, Queue paymentOrderCreatedQueue) {
+		return BindingBuilder.bind(paymentOrderCreatedQueue)
 				.to(ecommerceTopicExchange)
-				.with(MessagingConstants.PAYMENT_COMPLETED_ROUTING_KEY);
+				.with(MessagingConstants.ORDER_CREATED_ROUTING_KEY);
 	}
 
 	@Bean
@@ -44,7 +43,7 @@ public class RabbitMqConfig {
 		Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
 		DefaultJackson2JavaTypeMapper typeMapper = new DefaultJackson2JavaTypeMapper();
 		Map<String, Class<?>> mappings = new HashMap<>();
-		mappings.put(PAYMENT_COMPLETED_PAYMENT_FQCN, PaymentCompletedMessage.class);
+		mappings.put(ORDER_CREATED_EVENT_FQCN, OrderCreatedMessage.class);
 		typeMapper.setIdClassMapping(mappings);
 		converter.setJavaTypeMapper(typeMapper);
 		return converter;

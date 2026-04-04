@@ -88,6 +88,7 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-app}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS:-app}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-dev-internal-token}
     depends_on:
       order-mysql:
         condition: service_healthy
@@ -138,11 +139,15 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-app}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS:-app}
+      ORDER_SERVICE_BASE_URL: http://order-service:8085
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-dev-internal-token}
     depends_on:
       payment-postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      order-service:
+        condition: service_started
     ports:
       - "8084:8084"
 

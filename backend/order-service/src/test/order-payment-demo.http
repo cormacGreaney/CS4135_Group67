@@ -1,6 +1,5 @@
 @baseUrl = http://localhost:8080
 
-### Create order (publishes OrderCreated to RabbitMQ)
 POST {{baseUrl}}/api/order
 Content-Type: application/json
 
@@ -19,7 +18,7 @@ Content-Type: application/json
 }
 
 ### Get order by id (set @orderId from create response)
-@orderId = 15
+@orderId = 25
 GET {{baseUrl}}/api/order/{{orderId}}
 Accept: application/json
 

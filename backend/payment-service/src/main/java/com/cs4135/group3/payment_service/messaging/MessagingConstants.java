@@ -1,4 +1,4 @@
-package com.cs4135.group3.order_service.messaging;
+package com.cs4135.group3.payment_service.messaging;
 
 public final class MessagingConstants {
 
@@ -11,5 +11,5 @@ public final class MessagingConstants {
 
 	public static final String PAYMENT_COMPLETED_ROUTING_KEY = "payment.completed";
 
-	public static final String ORDER_PAYMENT_COMPLETED_QUEUE = "q.order.payment.completed";
+	public static final String PAYMENT_ORDER_CREATED_QUEUE = "q.payment.order.created";
 }
