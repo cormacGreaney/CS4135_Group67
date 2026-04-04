@@ -1,5 +1,9 @@
 package com.cs4135.group3.order_service.model;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,14 +15,11 @@ import jakarta.persistence.NamedAttributeNode;
 import jakarta.persistence.NamedEntityGraph;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "orders")
@@ -48,6 +49,11 @@ public class Order
 
     // Cascade ensures new order items are persisted when the parent order is saved.
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    @Getter(AccessLevel.NONE)
     private List<OrderItem> orderItems;
+
+    public List<OrderItem> getOrderItems() {
+        return orderItems;
+    }
 }
 
