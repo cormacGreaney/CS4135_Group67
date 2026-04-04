@@ -11,8 +11,10 @@ import com.cs4135.group3.product_service.web.dto.ProductUpdateRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -35,6 +37,10 @@ public class ProductService {
 			String category,
 			BigDecimal minPrice,
 			BigDecimal maxPrice) {
+		if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
+			throw new ResponseStatusException(
+					HttpStatus.BAD_REQUEST, "minPrice must be less than or equal to maxPrice");
+		}
 		Specification<Product> spec = Specification.where(ProductSpecifications.notDeleted())
 				.and(ProductSpecifications.nameContainsIgnoreCase(q))
 				.and(ProductSpecifications.categoryEquals(category))
