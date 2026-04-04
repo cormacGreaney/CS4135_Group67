@@ -9,6 +9,8 @@ import com.cs4135.group3.payment_service.domain.Payment;
 
 public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
+	boolean existsByOrderId(Long orderId);
+
 	List<Payment> findByOrderIdOrderByPaymentDateDesc(Long orderId);
 
 	List<Payment> findByOrderIdAndUserIdOrderByPaymentDateDesc(Long orderId, Long userId);

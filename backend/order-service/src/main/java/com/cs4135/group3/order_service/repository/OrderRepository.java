@@ -1,12 +1,19 @@
 package com.cs4135.group3.order_service.repository;
 
-import com.cs4135.group3.order_service.model.Order;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import com.cs4135.group3.order_service.model.Order;
 
 public interface OrderRepository extends JpaRepository<Order, Long>
 {
-    // Spring Data derives the query from the method name.
-    List<Order> findByUserId(Long userId);
+	@EntityGraph("Order.withItems")
+	@Override
+	Optional<Order> findById(Long id);
+
+	@EntityGraph("Order.withItems")
+	List<Order> findByUserId(Long userId);
 }

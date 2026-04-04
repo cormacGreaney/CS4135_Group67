@@ -1,7 +1,23 @@
 # Run the full stack: npm run dev
 # Two separate MySQL servers: one for orders, one for the product catalog (product-service).
+# RabbitMQ: async domain events between order-service and payment-service (AMQP 5672; management UI 15672).
 
 services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-app}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-app}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -68,8 +84,15 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_service?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&serverTimezone=UTC&useSSL=false
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: mysql
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-app}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS:-app}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-dev-internal-token}
     depends_on:
       order-mysql:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     ports:
       - "8085:8085"
@@ -112,9 +135,19 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-app}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS:-app}
+      ORDER_SERVICE_BASE_URL: http://order-service:8085
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-dev-internal-token}
     depends_on:
       payment-postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      order-service:
+        condition: service_started
     ports:
       - "8084:8084"
 
