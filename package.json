@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "docker compose up --build",
     "dev:detached": "docker compose up --build -d",
-    "down": "docker compose down"
+    "down": "docker compose down",
+    "reset": "docker compose down -v --remove-orphans && docker compose build --no-cache && docker compose up"
   }
 }
