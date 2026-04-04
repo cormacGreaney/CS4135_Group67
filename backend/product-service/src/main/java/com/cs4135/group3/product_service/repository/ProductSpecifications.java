@@ -18,12 +18,19 @@ public final class ProductSpecifications {
 	}
 
 	// Search text: match if the name contains this string (ignores case). Empty means "no filter".
+	// % and _ are escaped so the query is literal substring match.
 	public static Specification<Product> nameContainsIgnoreCase(String q) {
 		if (!StringUtils.hasText(q)) {
 			return (root, query, cb) -> cb.conjunction();
 		}
-		String pattern = "%" + q.trim().toLowerCase() + "%";
-		return (root, query, cb) -> cb.like(cb.lower(root.get("name")), pattern);
+		String literal = q.trim().toLowerCase();
+		String pattern = "%" + escapeLikeLiteral(literal) + "%";
+		char escape = '\\';
+		return (root, query, cb) -> cb.like(cb.lower(root.get("name")), pattern, escape);
+	}
+
+	private static String escapeLikeLiteral(String s) {
+		return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
 	}
 
 	// Exact category match (ignores case). Empty means "no filter".
