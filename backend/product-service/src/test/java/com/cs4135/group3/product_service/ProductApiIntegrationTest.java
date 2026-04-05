@@ -63,7 +63,7 @@ class ProductApiIntegrationTest {
     void listIsPublicAndReturnsSeededProducts() throws Exception {
         mockMvc.perform(get("/api/products"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(3)));
+                .andExpect(jsonPath("$.content", hasSize(16)));
     }
 
     @Test
