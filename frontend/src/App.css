@@ -1,89 +1,19 @@
-.wrap {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 1.5rem;
-  text-align: left;
-  color: #111827;
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  margin: 0;
+  padding: 0;
 }
 
-.wrap h1 {
-  font-size: 1.25rem;
-  margin-bottom: 0.5rem;
+button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 5px;
+  background: #1f2937;
+  color: white;
+  cursor: pointer;
 }
 
-.hint {
-  font-size: 0.85rem;
-  color: #4b5563;
-  margin-bottom: 1rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.75rem;
-}
-
-label input {
-  display: block;
-  width: 100%;
-  max-width: 24rem;
-  margin-top: 0.25rem;
-  padding: 0.35rem 0.5rem;
-  color: #111827;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-}
-
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 1rem 0;
-}
-
-.row button {
-  padding: 0.35rem 0.75rem;
-}
-
-label.inline {
-  display: inline-block;
-  margin-bottom: 0;
-  flex: 1 1 12rem;
-}
-
-.err {
-  color: #b00020;
-  font-size: 0.9rem;
-}
-
-section {
-  margin-top: 1rem;
-}
-
-section h2 {
-  font-size: 1rem;
-  margin-bottom: 0.35rem;
-}
-
-.box {
-  background: #f3f4f6;
-  color: #111827;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 0.75rem;
-  overflow: auto;
-  font-size: 0.8rem;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-code {
-  font-size: 0.85em;
-  color: #1f2937;
-  background: #e5e7eb;
-  padding: 0.1em 0.35em;
-  border-radius: 4px;
+button:hover {
+  background: #111827;
 }
