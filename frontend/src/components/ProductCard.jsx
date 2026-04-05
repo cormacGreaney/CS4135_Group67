@@ -1,18 +1,23 @@
 import { useContext } from "react";
-import { CartContext } from "../context/CartContext.jsx";
+import { CartContext } from "../context/CartContext";
 
 function ProductCard({ product }) {
   const { addToCart } = useContext(CartContext);
 
+  const cleanProduct = {
+    id: product.id,
+    name: product.name,
+    price: Number(product.price),
+  };
+
   return (
-    <div style={{
-      border: "1px solid #ccc",
-      padding: "10px",
-      borderRadius: "5px"
-    }}>
+    <div>
       <h3>{product.name}</h3>
-      <p>Price: €{product.price}</p>
-      <button onClick={() => addToCart(product)}>Add to Cart</button>
+      <p>€{product.price}</p>
+
+      <button onClick={() => addToCart(cleanProduct)}>
+        Add to Cart
+      </button>
     </div>
   );
 }

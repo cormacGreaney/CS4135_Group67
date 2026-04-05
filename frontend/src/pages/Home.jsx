@@ -8,6 +8,7 @@ function Home() {
   useEffect(() => {
     apiFetch("/api/products")
       .then(data => {
+        console.log("First product:", data.content[0]);
         setProducts(data.content || []);
       })
       .catch(err => console.error(err));
