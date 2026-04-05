@@ -63,15 +63,15 @@ class ProductApiIntegrationTest {
     void listIsPublicAndReturnsSeededProducts() throws Exception {
         mockMvc.perform(get("/api/products"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(3)));
+                .andExpect(jsonPath("$.content", hasSize(13)));
     }
 
     @Test
     @Order(2)
     void getByIdReturnsProduct() throws Exception {
-        mockMvc.perform(get("/api/products/a0000000-0000-4000-8000-000000000001"))
+        mockMvc.perform(get("/api/products/b0000000-0000-4000-8000-000000000011"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Wireless Mouse"));
+                .andExpect(jsonPath("$.name").value("Guinness Draught Stout"));
     }
 
     @Test
@@ -125,7 +125,7 @@ class ProductApiIntegrationTest {
     @Order(6)
     void putWithAdminUpdatesProduct() throws Exception {
         String token = JwtTestTokens.accessToken("2", "ADMINISTRATOR");
-        mockMvc.perform(put("/api/products/a0000000-0000-4000-8000-000000000002")
+        mockMvc.perform(put("/api/products/b0000000-0000-4000-8000-000000000012")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
