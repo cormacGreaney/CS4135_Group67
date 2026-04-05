@@ -3,6 +3,7 @@ package com.cs4135.group3.order_service.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,35 +31,36 @@ public class OrderController
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public OrderResponse createOrder(@RequestBody OrderRequest orderRequest)
+    public OrderResponse createOrder(@RequestBody OrderRequest orderRequest, Authentication authentication)
     {
-        return OrderResponse.fromEntity(orderService.createOrder(orderRequest));
+        return OrderResponse.fromEntity(orderService.createOrder(orderRequest, authentication));
     }
 
     @GetMapping("/user/{userId}")
-    public List<OrderResponse> getOrdersByUserId(@PathVariable Long userId)
+    public List<OrderResponse> getOrdersByUserId(@PathVariable Long userId, Authentication authentication)
     {
         // Returns all orders that belong to a single user-service account.
-        return orderService.getOrdersByUserId(userId).stream().map(OrderResponse::fromEntity).toList();
+        return orderService.getOrdersByUserId(userId, authentication).stream().map(OrderResponse::fromEntity).toList();
     }
 
     @GetMapping("/{id}")
-    public OrderResponse getOrderById(@PathVariable Long id)
+    public OrderResponse getOrderById(@PathVariable Long id, Authentication authentication)
     {
-        return OrderResponse.fromEntity(orderService.getOrderById(id));
+        return OrderResponse.fromEntity(orderService.getOrderById(id, authentication));
     }
 
     @PutMapping("/{orderId}/status")
     public OrderResponse updateStatus(
             @PathVariable Long orderId,
-            @RequestParam OrderStatus status)
+            @RequestParam OrderStatus status,
+            Authentication authentication)
     {
-        return OrderResponse.fromEntity(orderService.updateOrderStatus(orderId, status));
+        return OrderResponse.fromEntity(orderService.updateOrderStatus(orderId, status, authentication));
     }
 
     @PutMapping("/{orderId}/cancel")
-    public OrderResponse cancelOrder(@PathVariable Long orderId)
+    public OrderResponse cancelOrder(@PathVariable Long orderId, Authentication authentication)
     {
-        return OrderResponse.fromEntity(orderService.cancelOrder(orderId));
+        return OrderResponse.fromEntity(orderService.cancelOrder(orderId, authentication));
     }
 }

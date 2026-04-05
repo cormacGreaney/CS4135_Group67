@@ -5,9 +5,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.cs4135.group3.order_service.events.OrderCreatedEvent;
 import com.cs4135.group3.order_service.messaging.OrderCreatedRabbitPublisher;
@@ -30,12 +35,18 @@ public class OrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final OrderCreatedRabbitPublisher orderCreatedRabbitPublisher;
 
-    public Order createOrder(OrderRequest orderRequest)
+    public Order createOrder(OrderRequest orderRequest, Authentication authentication)
     {
         // Build the parent order first so each mapped OrderItem can reference it.
         Order order = new Order();
+        Long userId = parseUserId(authentication);
 
-        order.setUserId(orderRequest.userId());
+        // Ignore spoofed ownership by forcing the persisted user id to match the JWT subject.
+        if (orderRequest.userId() != null && !orderRequest.userId().equals(userId)) {
+            throw new ResponseStatusException(FORBIDDEN, "You can only create orders for yourself");
+        }
+
+        order.setUserId(userId);
         order.setOrderNumber(UUID.randomUUID().toString());
         order.setStatus(OrderStatus.PENDING);
         order.setOrderedDate(LocalDateTime.now());
@@ -80,31 +91,36 @@ public class OrderService {
         return savedOrder;
     }
 
-    public List<Order> getOrdersByUserId(Long userId)
+    public List<Order> getOrdersByUserId(Long userId, Authentication authentication)
     {
+        enforceSameUserOrAdmin(userId, authentication, "You can only view your own orders");
         return orderRepository.findByUserId(userId);
     }
 
-    public Order getOrderById(Long id)
+    public Order getOrderById(Long id, Authentication authentication)
     {
-        return orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Order not found"));
+        enforceOwnership(order, authentication, "You can only view your own orders");
+        return order;
     }
 
-    public Order updateOrderStatus(Long orderId, OrderStatus status)
+    public Order updateOrderStatus(Long orderId, OrderStatus status, Authentication authentication)
     {
+        enforceAdmin(authentication);
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Order not found"));
 
         order.setStatus(status);
 
         return orderRepository.save(order);
     }
 
-    public Order cancelOrder(Long orderId)
+    public Order cancelOrder(Long orderId, Authentication authentication)
     {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Order not found"));
+        enforceOwnership(order, authentication, "You can only cancel your own orders");
 
         order.setStatus(OrderStatus.CANCELLED);
 
@@ -135,5 +151,41 @@ public class OrderService {
         }
 
         orderRepository.save(order);
+    }
+
+    private void enforceOwnership(Order order, Authentication authentication, String message) {
+        enforceSameUserOrAdmin(order.getUserId(), authentication, message);
+    }
+
+    private void enforceSameUserOrAdmin(Long userId, Authentication authentication, String message) {
+        if (isAdmin(authentication)) {
+            return;
+        }
+
+        // Regular users are restricted to resources owned by the JWT subject.
+        if (!userId.equals(parseUserId(authentication))) {
+            throw new ResponseStatusException(FORBIDDEN, message);
+        }
+    }
+
+    private void enforceAdmin(Authentication authentication) {
+        if (!isAdmin(authentication)) {
+            throw new ResponseStatusException(FORBIDDEN, "Administrator role required");
+        }
+    }
+
+    private Long parseUserId(Authentication authentication) {
+        try {
+            return Long.valueOf(authentication.getName());
+        }
+        catch (NumberFormatException ex) {
+            throw new ResponseStatusException(FORBIDDEN, "Invalid authenticated user");
+        }
+    }
+
+    private boolean isAdmin(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_ADMINISTRATOR"::equals);
     }
 }
