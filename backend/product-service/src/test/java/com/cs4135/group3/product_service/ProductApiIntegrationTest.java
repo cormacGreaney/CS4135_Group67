@@ -76,7 +76,7 @@ class ProductApiIntegrationTest {
     void getByIdReturnsProduct() throws Exception {
         mockMvc.perform(get("/api/products/b0000000-0000-4000-8000-000000000011"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Guinness Draught 8 x 500ml"))
+                .andExpect(jsonPath("$.name").value("Guinness Draught 8 x 500ml"));
     }
 
     @Test
@@ -202,5 +202,36 @@ class ProductApiIntegrationTest {
         mockMvc.perform(get("/api/products").param("q", "37.5%"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[*].name", hasItem("Smirnoff No.21 Red Label Vodka Bottle 37.5% Vol 1L")));
+    }
+
+    @Test
+    @Order(11)
+    void getImageWhenMissingReturns404() throws Exception {
+        mockMvc.perform(get("/api/products/b0000000-0000-4000-8000-000000000014/image"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @Order(12)
+    void putImageWithAdminThenGetImage() throws Exception {
+        String token = JwtTestTokens.accessToken("2", "ADMINISTRATOR");
+        byte[] pngBytes = new byte[] {1, 2, 3, 4};
+        mockMvc.perform(multipart("/api/products/b0000000-0000-4000-8000-000000000014/image")
+                        .file(new MockMultipartFile("file", "tiny.png", "image/png", pngBytes))
+                        .with(req -> {
+                            req.setMethod("PUT");
+                            return req;
+                        })
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/products/b0000000-0000-4000-8000-000000000014"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasImage").value(true));
+
+        mockMvc.perform(get("/api/products/b0000000-0000-4000-8000-000000000014/image"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", containsString("image/png")))
+                .andExpect(content().bytes(pngBytes));
     }
 }
