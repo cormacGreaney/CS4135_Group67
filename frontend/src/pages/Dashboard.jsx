@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api/api.js";
 import theme from "../styles/theme";
+import LogoutButton from "../components/LogoutButton.jsx";
 
 function formatCurrency(value) {
   return `€${Number(value ?? 0).toFixed(2)}`;
@@ -99,10 +100,11 @@ function Dashboard() {
   return (
     <div style={{ backgroundColor: theme.backgroundWarm, minHeight: "100vh", padding: "30px 20px" }}>
       <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
-
-        <h2 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, fontSize: "30px", marginBottom: "6px", textAlign: "center" }}>Customer Dashboard</h2>
-        <p style={{ color: theme.textMuted, textAlign: "center", marginBottom: "36px", fontFamily: "'Arial', sans-serif" }}>Welcome back, {user.email}</p>
-
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+          <h2 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, fontSize: "30px", margin: 0, textAlign: "center", flex: 1 }}>Customer Dashboard</h2>
+            <LogoutButton />
+        </div>
+<p style={{ color: theme.textMuted, textAlign: "center", marginBottom: "36px", fontFamily: "'Arial', sans-serif" }}>Welcome back, {user.email}</p>
         {error && (
           <p style={{ color: theme.errorText, backgroundColor: theme.errorBackground, padding: "15px", borderRadius: "8px", marginBottom: "24px", textAlign: "center", fontFamily: "'Arial', sans-serif" }}>
             {error}
