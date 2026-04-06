@@ -8,6 +8,9 @@ function AdminDashboard() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState(null);
+  const [orderId, setOrderId] = useState("");
+  const [orderStatus, setOrderStatus] = useState("PENDING");
+  const [orderDetails, setOrderDetails] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -119,6 +122,48 @@ function AdminDashboard() {
       resetForm();
     } catch (err) {
       setError(err.message || "Unable to save product.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateOrderStatus(){
+    if(!orderId.trim()) {
+      setError("Order ID is required.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+
+    try {
+      await apiFetch(`/api/orders/${orderId}/status?status=${orderStatus}`, {
+        method: "PUT"
+      });
+      setError("Order status updated successfully.");
+      setOrderId("");
+    } catch (err) {
+      setError(err.message || "Unable to update order status.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function cancelOrder() {
+    if(!orderId.trim()) {
+      setError("Order ID is required.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+
+    try {
+      await apiFetch(`/api/orders/${orderId}/cancel`, {
+        method: "POST"
+      });
+      setError("Order cancelled successfully.");
+      setOrderId("");
+    } catch (err) {
+      setError(err.message || "Unable to cancel order.");
     } finally {
       setSaving(false);
     }
@@ -271,6 +316,45 @@ function AdminDashboard() {
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+      <section>
+        <h3>Order Management</h3>
+        <div style={{ maxWidth: "600px" }}>
+          <label>Order ID:</label>
+          <input
+            type="text"
+            value={orderId}
+            onChange={e => setOrderId(e.target.value)}
+            disabled={saving}
+            style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+          />
+          <label>Status:</label>
+          <select
+            value={orderStatus}
+            onChange={e => setOrderStatus(e.target.value)}
+            disabled={saving}
+            style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+          >
+            <option value="PENDING">PENDING</option>
+            <option value="SHIPPED">SHIPPED</option>
+            <option value="DELIVERED">DELIVERED</option>
+            <option value="CANCELLED">CANCELLED</option>
+          </select>
+          <button
+            onClick={updateOrderStatus}
+            disabled={saving}
+            style={{ padding: "10px 16px", backgroundColor: "#007bff", color: "#fff", border: "none", borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer", marginTop: "10px" }}
+          >
+            Update Status
+          </button>
+          <button
+            onClick={cancelOrder}
+            disabled={saving}
+            style={{ padding: "10px 16px", backgroundColor: "#dc3545", color: "#fff", border: "none", borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer", marginTop: "10px" }}
+          >
+            Cancel Order
+          </button>
         </div>
       </section>
     </div>
