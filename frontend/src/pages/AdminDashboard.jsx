@@ -11,6 +11,9 @@ function AdminDashboard() {
   const [orderId, setOrderId] = useState("");
   const [orderStatus, setOrderStatus] = useState("PENDING");
   const [orderDetails, setOrderDetails] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,6 +24,7 @@ function AdminDashboard() {
         } else {
           setUser(u);
           loadProducts();
+          loadOrders();
         }
       })
       .catch(() => {
@@ -37,6 +41,20 @@ function AdminDashboard() {
       setProducts(data.content || data || []);
     } catch (err) {
       setError(err.message || "Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadOrders(query = "") {
+    setLoading(true);
+    setError("");
+    try {
+      const url = query ? `/api/orders?status=${encodeURIComponent(query)}` : "/api/orders";
+      const data = await apiFetch(url);
+      setOrders(data || []);
+    } catch (err) {
+      setError(err.message || "Failed to load orders");
     } finally {
       setLoading(false);
     }
@@ -72,6 +90,12 @@ function AdminDashboard() {
       category: product.category || ""
     });
     setError("");
+  }
+
+  function selectOrder(order) {
+    setSelectedOrder(order);
+    setOrderId(order.id.toString());
+    setOrderStatus(order.status);
   }
 
   async function handleSubmit(e) {
@@ -357,6 +381,61 @@ function AdminDashboard() {
           </button>
         </div>
       </section>
+
+      <section style={{ marginTop: "30px" }}>
+        <h3>Order List</h3>
+        <div style={{ marginBottom: "20px" }}>
+          <select
+            value={orderSearch}
+            onChange={e => {
+              setOrderSearch(e.target.value);
+              loadOrders(e.target.value);
+            }}
+            style={{ padding: "8px", marginRight: "10px" }}
+          >
+            <option value="">All Orders</option>
+            <option value="PENDING">Pending</option>
+            <option value="PAID">Paid</option>
+            <option value="SHIPPED">Shipped</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Order ID</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>User ID</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Status</th>
+                <th style={{ textAlign: "right", padding: "10px", borderBottom: "1px solid #ddd" }}>Total Price</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Ordered Date</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map(order => (
+                <tr key={order.id} style={{ cursor: "pointer" }} onClick={() => selectOrder(order)}>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{order.id}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{order.userId}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{order.status}</td>
+                  <td style={{ padding: "10px", textAlign: "right", borderBottom: "1px solid #eee" }}>${order.totalPrice?.toFixed(2)}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{new Date(order.orderedDate).toLocaleDateString()}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); selectOrder(order); }}
+                      style={{ padding: "6px 10px", borderRadius: "4px", border: "1px solid #007bff", backgroundColor: "#fff", color: "#007bff", cursor: "pointer" }}
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
     </div>
   );
 }
