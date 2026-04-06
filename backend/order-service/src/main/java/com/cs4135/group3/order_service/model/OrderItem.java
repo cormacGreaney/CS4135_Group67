@@ -1,6 +1,7 @@
 package com.cs4135.group3.order_service.model;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -28,7 +29,7 @@ public class OrderItem
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long productId;
+    private UUID productId;
 
     private String productName;
 

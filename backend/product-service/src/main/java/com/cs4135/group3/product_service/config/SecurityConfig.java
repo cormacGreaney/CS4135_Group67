@@ -26,6 +26,7 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain securityFilterChain(
 			HttpSecurity http,
+			InternalApiTokenFilter internalApiTokenFilter,
 			JwtAuthenticationFilter jwtAuthenticationFilter,
 			ObjectMapper objectMapper) throws Exception {
 		http
@@ -37,6 +38,7 @@ public class SecurityConfig {
 						.accessDeniedHandler(accessDeniedHandler(objectMapper)))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/error").permitAll()
+						.requestMatchers("/internal/**").permitAll()
 						// No login needed to list or view products
 						.requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
 						// Add, change, or remove products — logged-in admin only
@@ -44,6 +46,7 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMINISTRATOR")
 						.requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMINISTRATOR")
 						.anyRequest().denyAll())
+				.addFilterBefore(internalApiTokenFilter, UsernamePasswordAuthenticationFilter.class)
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 		return http.build();
 	}

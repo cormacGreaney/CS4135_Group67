@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.cs4135.group3.order_service.events.OrderCreatedEvent;
+import com.cs4135.group3.order_service.integration.ProductStockClient;
 import com.cs4135.group3.order_service.messaging.OrderCreatedRabbitPublisher;
 import com.cs4135.group3.order_service.messaging.PaymentCompletedMessage;
 import com.cs4135.group3.order_service.model.Order;
@@ -34,6 +35,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final OrderCreatedRabbitPublisher orderCreatedRabbitPublisher;
+    private final ProductStockClient productStockClient;
 
     public Order createOrder(OrderRequest orderRequest, Authentication authentication)
     {
@@ -148,6 +150,8 @@ public class OrderService {
         }
 
         if ("SUCCESS".equalsIgnoreCase(msg.status())) {
+            // Stock must be deducted first; if that call fails, the transaction leaves the order in PENDING.
+            productStockClient.deductStock(order.getOrderItems());
             order.setStatus(OrderStatus.PAID);
         }
         else {
