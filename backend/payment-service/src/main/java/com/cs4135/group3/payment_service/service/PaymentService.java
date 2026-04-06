@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.cs4135.group3.payment_service.domain.Payment;
 import com.cs4135.group3.payment_service.domain.PaymentStatus;
 import com.cs4135.group3.payment_service.repository.PaymentRepository;
+import com.cs4135.group3.payment_service.web.dto.CardCheckoutRequest;
 import com.cs4135.group3.payment_service.web.dto.CreatePaymentRequest;
 import com.cs4135.group3.payment_service.web.dto.PaymentResponse;
 
@@ -42,6 +43,13 @@ public class PaymentService {
 
 		paymentRepository.save(payment);
 		return toResponse(payment);
+	}
+
+	// will replace this with real card simulation rules
+	@Transactional
+	public PaymentResponse checkoutCard(CardCheckoutRequest req, Authentication authentication) {
+		CreatePaymentRequest mapped = new CreatePaymentRequest(req.orderId(), req.amount(), "sim-card", false);
+		return create(mapped, authentication);
 	}
 
 	public PaymentResponse getById(UUID id, Authentication authentication) {
