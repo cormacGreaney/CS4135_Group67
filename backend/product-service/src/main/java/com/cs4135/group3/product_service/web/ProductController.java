@@ -8,7 +8,10 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -49,6 +53,26 @@ public class ProductController {
 	public ProductResponse get(@PathVariable UUID id) {
 		// One product by id
 		return productService.getById(id);
+	}
+
+	@GetMapping("/{id}/image")
+	public ResponseEntity<byte[]> getImage(@PathVariable UUID id) {
+		var img = productService.getImage(id);
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_TYPE, img.contentType())
+				.body(img.data());
+	}
+
+	@PutMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void putImage(@PathVariable UUID id, @RequestParam("file") MultipartFile file) {
+		productService.replaceImage(id, file);
+	}
+
+	@DeleteMapping("/{id}/image")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteImage(@PathVariable UUID id) {
+		productService.clearImage(id);
 	}
 
 	@PostMapping

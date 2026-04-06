@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cs4135.group3.payment_service.service.PaymentService;
+import com.cs4135.group3.payment_service.web.dto.CardCheckoutRequest;
 import com.cs4135.group3.payment_service.web.dto.CreatePaymentRequest;
 import com.cs4135.group3.payment_service.web.dto.PaymentResponse;
 
@@ -33,6 +34,12 @@ public class PaymentController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public PaymentResponse create(@Valid @RequestBody CreatePaymentRequest body, Authentication authentication) {
 		return paymentService.create(body, authentication);
+	}
+
+	@PostMapping("/checkout-card")
+	@ResponseStatus(HttpStatus.CREATED)
+	public PaymentResponse checkoutCard(@Valid @RequestBody CardCheckoutRequest body, Authentication authentication) {
+		return paymentService.checkoutCard(body, authentication);
 	}
 
 	@GetMapping("/{id}")
