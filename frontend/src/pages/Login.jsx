@@ -24,7 +24,7 @@ function Login() {
       .then(userData => {
         setUser(userData);
         if(userData.role === "ADMINISTRATOR") { 
-          navigate("/admin-dashboard"); 
+          navigate("/admin"); 
         } else {
           navigate("/dashboard");
         }
@@ -64,7 +64,7 @@ function Login() {
       setUser(userData);
 
       if(userData.role === "ADMINISTRATOR") {
-        navigate("/admin-dashboard");
+        navigate("/admin");
       } else {
         navigate("/dashboard");
       }
