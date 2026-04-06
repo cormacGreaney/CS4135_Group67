@@ -17,6 +17,7 @@ public final class ProductMapper {
 				p.getPrice(),
 				p.getStockQuantity(),
 				p.getCategory(),
-				p.getCreatedAt());
+				p.getCreatedAt(),
+				p.isHasImage());
 	}
 }

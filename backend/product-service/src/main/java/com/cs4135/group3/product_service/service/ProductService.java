@@ -12,10 +12,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -88,5 +92,61 @@ public class ProductService {
 				.orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 		// We don't remove the row from the database — we just mark it deleted
 		p.setDeletedAt(Instant.now());
+	}
+
+	@Transactional(readOnly = true)
+	public ProductImagePayload getImage(UUID id) {
+		Product p = productRepository.findByIdAndDeletedAtIsNull(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+		if (!p.isHasImage()) {
+			throw new ResourceNotFoundException("Product image not found");
+		}
+		byte[] data = p.getImageData();
+		if (data == null || data.length == 0) {
+			throw new ResourceNotFoundException("Product image not found");
+		}
+		String contentType = p.getImageContentType();
+		if (!StringUtils.hasText(contentType)) {
+			contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+		}
+		return new ProductImagePayload(data, contentType);
+	}
+
+	@Transactional
+	public void replaceImage(UUID id, MultipartFile file) {
+		if (file == null || file.isEmpty()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image file is required");
+		}
+		String contentType = file.getContentType();
+		if (!StringUtils.hasText(contentType) || !contentType.toLowerCase().startsWith("image/")) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File must be an image (image/* content type)");
+		}
+		byte[] bytes;
+		try {
+			bytes = file.getBytes();
+		}
+		catch (IOException e) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Could not read image file");
+		}
+		if (bytes.length == 0) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image file is empty");
+		}
+		Product p = productRepository.findByIdAndDeletedAtIsNull(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+		p.setImageData(bytes);
+		p.setImageContentType(contentType);
+		p.setHasImage(true);
+	}
+
+	@Transactional
+	public void clearImage(UUID id) {
+		Product p = productRepository.findByIdAndDeletedAtIsNull(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+		p.setImageData(null);
+		p.setImageContentType(null);
+		p.setHasImage(false);
+	}
+
+	public record ProductImagePayload(byte[] data, String contentType) {
 	}
 }

@@ -5,9 +5,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
@@ -130,8 +130,12 @@ public class OrderService {
 
     @Transactional
     public void applyPaymentResult(PaymentCompletedMessage msg) {
-        Order order = orderRepository.findById(msg.orderId())
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+        Order order = orderRepository.findById(msg.orderId()).orElse(null);
+        if (order == null) {
+            // Do not throw here, this stops stale/poisoned messages that are re-delivered forever by the listener.
+            log.warn("Ignoring PaymentCompleted for unknown orderId={}", msg.orderId());
+            return;
+        }
 
         if (order.getStatus() != OrderStatus.PENDING) {
             log.debug("Ignoring payment completion for order {} in state {}", msg.orderId(), order.getStatus());
