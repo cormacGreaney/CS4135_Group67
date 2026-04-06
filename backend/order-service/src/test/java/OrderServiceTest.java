@@ -28,6 +28,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.cs4135.group3.order_service.events.OrderCreatedEvent;
+import com.cs4135.group3.order_service.integration.ProductStockClient;
+import com.cs4135.group3.order_service.messaging.PaymentCompletedMessage;
 import com.cs4135.group3.order_service.messaging.OrderCreatedRabbitPublisher;
 import com.cs4135.group3.order_service.model.Order;
 import com.cs4135.group3.order_service.model.OrderItem;
@@ -43,6 +45,10 @@ class OrderServiceTest {
     private static final Authentication CUSTOMER_AUTH = auth("42", "ROLE_CUSTOMER");
     private static final Authentication OTHER_CUSTOMER_AUTH = auth("123", "ROLE_CUSTOMER");
     private static final Authentication ADMIN_AUTH = auth("7", "ROLE_ADMINISTRATOR");
+    private static final UUID PRODUCT_ID_1 = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID PRODUCT_ID_2 = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    private static final UUID PRODUCT_ID_3 = UUID.fromString("00000000-0000-0000-0000-000000000003");
+    private static final UUID PRODUCT_ID_5 = UUID.fromString("00000000-0000-0000-0000-000000000005");
 
     @Mock
     private OrderRepository orderRepository;
@@ -52,6 +58,9 @@ class OrderServiceTest {
 
     @Mock
     private OrderCreatedRabbitPublisher orderCreatedRabbitPublisher;
+
+    @Mock
+    private ProductStockClient productStockClient;
 
     @InjectMocks
     private OrderService orderService;
@@ -78,7 +87,7 @@ class OrderServiceTest {
                 null,
                 42L,
                 null,
-                List.of(new OrderItemRequest(1L, "Mouse", new BigDecimal("49.99"), 3))
+                List.of(new OrderItemRequest(PRODUCT_ID_1, "Mouse", new BigDecimal("49.99"), 3))
         );
 
         orderService.createOrder(request, CUSTOMER_AUTH);
@@ -107,7 +116,7 @@ class OrderServiceTest {
                 null,
                 7L,
                 "request-order-number",
-                List.of(new OrderItemRequest(2L, "Desk Lamp", new BigDecimal("15.50"), 1))
+                List.of(new OrderItemRequest(PRODUCT_ID_2, "Desk Lamp", new BigDecimal("15.50"), 1))
         );
 
         orderService.createOrder(request, ADMIN_AUTH);
@@ -128,7 +137,7 @@ class OrderServiceTest {
                 null,
                 11L,
                 null,
-                List.of(new OrderItemRequest(3L, "Keyboard", new BigDecimal("120.00"), 2))
+                List.of(new OrderItemRequest(PRODUCT_ID_3, "Keyboard", new BigDecimal("120.00"), 2))
         );
 
         orderService.createOrder(request, auth("11", "ROLE_CUSTOMER"));
@@ -145,8 +154,8 @@ class OrderServiceTest {
                 42L,
                 null,
                 List.of(
-                        new OrderItemRequest(1L, "Mouse", new BigDecimal("20.00"), 2),
-                        new OrderItemRequest(2L, "Keyboard", new BigDecimal("50.00"), 1))
+                        new OrderItemRequest(PRODUCT_ID_1, "Mouse", new BigDecimal("20.00"), 2),
+                        new OrderItemRequest(PRODUCT_ID_2, "Keyboard", new BigDecimal("50.00"), 1))
         );
 
         orderService.createOrder(request, CUSTOMER_AUTH);
@@ -166,7 +175,7 @@ class OrderServiceTest {
                 null,
                 12L,
                 null,
-                List.of(new OrderItemRequest(1L, "Headphones", new BigDecimal("35.00"), 1))
+                List.of(new OrderItemRequest(PRODUCT_ID_1, "Headphones", new BigDecimal("35.00"), 1))
         );
 
         orderService.createOrder(request, auth("12", "ROLE_CUSTOMER"));
@@ -188,8 +197,8 @@ class OrderServiceTest {
                 21L,
                 null,
                 List.of(
-                        new OrderItemRequest(1L, "Mouse", new BigDecimal("20.00"), 1),
-                        new OrderItemRequest(2L, "Keyboard", new BigDecimal("45.00"), 1))
+                        new OrderItemRequest(PRODUCT_ID_1, "Mouse", new BigDecimal("20.00"), 1),
+                        new OrderItemRequest(PRODUCT_ID_2, "Keyboard", new BigDecimal("45.00"), 1))
         );
 
         orderService.createOrder(request, auth("21", "ROLE_CUSTOMER"));
@@ -208,7 +217,7 @@ class OrderServiceTest {
                 null,
                 33L,
                 null,
-                List.of(new OrderItemRequest(5L, "Webcam", new BigDecimal("80.00"), 2))
+                List.of(new OrderItemRequest(PRODUCT_ID_5, "Webcam", new BigDecimal("80.00"), 2))
         );
 
         orderService.createOrder(request, auth("33", "ROLE_CUSTOMER"));
@@ -250,7 +259,7 @@ class OrderServiceTest {
                 null,
                 999L,
                 null,
-                List.of(new OrderItemRequest(1L, "Mouse", new BigDecimal("49.99"), 1))
+                List.of(new OrderItemRequest(PRODUCT_ID_1, "Mouse", new BigDecimal("49.99"), 1))
         );
 
         ResponseStatusException exception = assertThrows(
@@ -433,5 +442,50 @@ class OrderServiceTest {
         assertEquals(404, exception.getStatusCode().value());
         assertEquals("Order not found", exception.getReason());
         verify(orderRepository).findById(888L);
+    }
+
+    @Test
+    void applyPaymentResultDeductsStockBeforeMarkingOrderPaid() {
+        Order order = new Order();
+        order.setId(10L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setTotalPrice(new BigDecimal("99.99"));
+        order.setOrderItems(List.of(new OrderItem(null, PRODUCT_ID_1, "Mouse", new BigDecimal("99.99"), 1, order)));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(order)).thenReturn(order);
+
+        orderService.applyPaymentResult(new PaymentCompletedMessage(UUID.randomUUID(), 10L, 42L, new BigDecimal("99.99"), "SUCCESS"));
+
+        verify(productStockClient).deductStock(order.getOrderItems());
+        assertEquals(OrderStatus.PAID, order.getStatus());
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void applyPaymentResultDoesNotMarkOrderPaidWhenStockUpdateFails() {
+        Order order = new Order();
+        order.setId(10L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setTotalPrice(new BigDecimal("99.99"));
+        order.setOrderItems(List.of(new OrderItem(null, PRODUCT_ID_1, "Mouse", new BigDecimal("99.99"), 1, order)));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
+        org.mockito.Mockito.doThrow(new RuntimeException("stock failed"))
+                .when(productStockClient)
+                .deductStock(order.getOrderItems());
+
+        RuntimeException exception = assertThrows(
+                RuntimeException.class,
+                () -> orderService.applyPaymentResult(new PaymentCompletedMessage(
+                        UUID.randomUUID(),
+                        10L,
+                        42L,
+                        new BigDecimal("99.99"),
+                        "SUCCESS")));
+
+        assertEquals("stock failed", exception.getMessage());
+        assertEquals(OrderStatus.PENDING, order.getStatus());
+        verify(productStockClient).deductStock(order.getOrderItems());
+        verify(orderRepository).findById(10L);
+        verify(orderRepository, org.mockito.Mockito.never()).save(any(Order.class));
     }
 }
