@@ -1,22 +1,33 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
-
-export function getToken() {
-  return localStorage.getItem("token");
-}
+// src/api/api.js
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 export async function apiFetch(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(getToken() && { Authorization: `Bearer ${getToken()}` }),
-      ...options.headers,
-    },
-    ...options,
-  });
+  const token = localStorage.getItem("token");
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
 
-  const data = await res.json().catch(() => ({}));
+  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
-  if (!res.ok) throw new Error(data.message || "API error");
+  // Auto-logout if unauthorized
+  if (res.status === 401) {
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+    throw new Error("Unauthorized, logging out...");
+  }
 
-  return data;
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || "API request failed");
+  }
+
+  return res.json();
+}
+
+// Convenience logout function
+export function logout() {
+  localStorage.removeItem("token");
+  window.location.href = "/login";
 }

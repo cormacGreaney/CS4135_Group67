@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api/api.js";
 
 function validateLogin(email, password) {
-  if(!email.trim()) return "Email is required";
-  if(!email.includes("@") || !email.includes(".")) return "Invalid email format";
-  if(!password) return "Password is required";
+  if (!email.trim()) return "Email is required";
+  if (!email.includes("@") || !email.includes(".")) return "Invalid email format";
+  if (!password) return "Password is required";
   return null;
 }
 
@@ -19,19 +19,16 @@ function Login() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if(token){
+    if (token) {
       apiFetch("/api/users/me")
-      .then(userData => {
-        setUser(userData);
-        if(userData.role === "ADMINISTRATOR") { 
-          navigate("/admin"); 
-        } else {
-          navigate("/dashboard");
-        }
-      })
-      .catch(() => {
-        localStorage.removeItem("token");
-      });
+        .then((userData) => {
+          setUser(userData);
+          if (userData.role === "ADMINISTRATOR") navigate("/admin");
+          else navigate("/dashboard");
+        })
+        .catch(() => {
+          localStorage.removeItem("token");
+        });
     }
   }, [navigate]);
 
@@ -40,47 +37,40 @@ function Login() {
     setError("");
 
     const validationError = validateLogin(email, password);
-    if(validationError) {
+    if (validationError) {
       setError(validationError);
       return;
     }
 
     setLoading(true);
-
     try {
       const data = await apiFetch("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
 
-      if(!data.accessToken) {
-        setError("Login failed: No access token received");
-        return;
-      }
+      if (!data.accessToken) throw new Error("No access token received");
 
       localStorage.setItem("token", data.accessToken);
 
       const userData = await apiFetch("/api/users/me");
       setUser(userData);
 
-      if(userData.role === "ADMINISTRATOR") {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      if (userData.role === "ADMINISTRATOR") navigate("/admin");
+      else navigate("/dashboard");
     } catch (err) {
-      setError(err.message || "Login failed. Please check your credentials and try again.");
+      setError(err.message || "Login failed. Check your credentials.");
     } finally {
       setLoading(false);
     }
   }
 
-  if(user !== null) {
+  if (user !== null) {
     return <p>Welcome back, {user.email}! Redirecting...</p>;
   }
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: "20px", maxWidth: "400px", margin: "0 auto" }}>
       <h2>Login</h2>
 
       {error && (
@@ -130,7 +120,7 @@ function Login() {
             color: "#fff",
             border: "none",
             borderRadius: "4px",
-            cursor: loading ? "not-allowed" : "pointer"
+            cursor: loading ? "not-allowed" : "pointer",
           }}
         >
           {loading ? "Logging in..." : "Login"}
