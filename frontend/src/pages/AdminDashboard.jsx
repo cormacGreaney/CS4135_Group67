@@ -59,6 +59,18 @@ function AdminDashboard() {
     if (error) setError("");
   }
 
+  function populateForm(product) {
+    setEditingProduct(product);
+    setForm({
+      name: product.name || "",
+      description: product.description || "",
+      price: product.price?.toString() || "",
+      stock: product.stockQuantity?.toString() || "",
+      category: product.category || ""
+    });
+    setError("");
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -250,7 +262,7 @@ function AdminDashboard() {
                     <button
                       onClick={() => handleDelete(product.id)}
                       disabled={saving}
-                      style={{ padding: "6px 10px", borderRadius: "4px", border: "1px solid #dc2626", backgroundColor: "#dc2626", color: "#fff", cursor: "pointer" }}
+                      style={{ padding: "6px 10px", borderRadius: "0px", border: "1px solid #FFD700", backgroundColor: "#FFD700", color: "#000", cursor: "pointer" }}
                     >
                       Delete
                     </button>
