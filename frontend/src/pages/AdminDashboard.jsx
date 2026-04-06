@@ -3,25 +3,439 @@ import { apiFetch } from "../api/api.js";
 import { useNavigate } from "react-router-dom";
 
 function AdminDashboard() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [user, setUser] = useState(null);
+  const [orderId, setOrderId] = useState("");
+  const [orderStatus, setOrderStatus] = useState("PENDING");
+  const [orderDetails, setOrderDetails] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     apiFetch("/api/users/me")
       .then(u => {
-        if (u.role !== "ADMINISTRATOR") navigate("/");
-        else setUser(u);
+        if (u.role !== "ADMINISTRATOR") { 
+          navigate("/");
+        } else {
+          setUser(u);
+          loadProducts();
+          loadOrders();
+        }
       })
-      .catch(err => alert(err.message));
-  }, []);
+      .catch(() => {
+        navigate("/login");
+      });
+  }, [navigate]);
 
-  if (!user) return <p>Loading...</p>;
+  async function loadProducts() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const data = await apiFetch("/api/products");
+      setProducts(data.content || data || []);
+    } catch (err) {
+      setError(err.message || "Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadOrders(query = "") {
+    setLoading(true);
+    setError("");
+    try {
+      const url = query ? `/api/orders?status=${encodeURIComponent(query)}` : "/api/orders";
+      const data = await apiFetch(url);
+      setOrders(data || []);
+    } catch (err) {
+      setError(err.message || "Failed to load orders");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    price: "",
+    stock: "",
+    category: ""
+  });
+  const [editingProduct, setEditingProduct] = useState(null);
+
+  function resetForm() {
+    setForm({ name: "", description: "", price: "", stock: "", category: "" });
+    setEditingProduct(null);
+    setError("");
+  }
+
+  function handleInputChange(field, value) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (error) setError("");
+  }
+
+  function populateForm(product) {
+    setEditingProduct(product);
+    setForm({
+      name: product.name || "",
+      description: product.description || "",
+      price: product.price?.toString() || "",
+      stock: product.stockQuantity?.toString() || "",
+      category: product.category || ""
+    });
+    setError("");
+  }
+
+  function selectOrder(order) {
+    setSelectedOrder(order);
+    setOrderId(order.id.toString());
+    setOrderStatus(order.status);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+
+    if (!form.name.trim()) {
+      setError("Product name is required.");
+      return;
+    }
+    if (!form.category.trim()) {
+      setError("Product category is required.");
+      return;
+    }
+    if (!form.price || isNaN(Number(form.price))) {
+      setError("Valid product price is required.");
+      return;
+    }
+    if (!form.stock || isNaN(Number(form.stock))) {
+      setError("Valid stock quantity is required.");
+      return;
+    }
+
+    setSaving(true);
+
+    const payload = {
+      name: form.name,
+      description: form.description,
+      price: Number(form.price),
+      stockQuantity: Number(form.stock),
+      category: form.category
+    };
+
+    try {
+      if (editingProduct) {
+        await apiFetch(`/api/products/${editingProduct.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload)
+        });
+      } else {
+        await apiFetch("/api/products", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+      }
+
+      await loadProducts();
+      resetForm();
+    } catch (err) {
+      setError(err.message || "Unable to save product.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateOrderStatus(){
+    if(!orderId.trim()) {
+      setError("Order ID is required.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+
+    try {
+      await apiFetch(`/api/orders/${orderId}/status?status=${orderStatus}`, {
+        method: "PUT"
+      });
+      setError("Order status updated successfully.");
+      setOrderId("");
+    } catch (err) {
+      setError(err.message || "Unable to update order status.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function cancelOrder() {
+    if(!orderId.trim()) {
+      setError("Order ID is required.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+
+    try {
+      await apiFetch(`/api/orders/${orderId}/cancel`, {
+        method: "POST"
+      });
+      setError("Order cancelled successfully.");
+      setOrderId("");
+    } catch (err) {
+      setError(err.message || "Unable to cancel order.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id) {
+    const confirmed = window.confirm("Delete this product?");
+    if (!confirmed) return;
+
+    setSaving(true);
+    setError("");
+
+    try {
+      await apiFetch(`/api/products/${id}`, {
+        method: "DELETE"
+      });
+      await loadProducts();
+      if (editingProduct?.id === id) resetForm();
+    } catch (err) {
+      setError(err.message || "Unable to delete product.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!user) return <p>Loading admin dashboard...</p>;
 
   return (
     <div style={{ padding: "20px" }}>
       <h2>Admin Dashboard</h2>
       <p>Welcome, {user.email}</p>
-      <p>You can manage products, orders, etc. here.</p>
+
+      {error && (
+        <p style={{ color: "red", backgroundColor: "#ffe0e0", padding: "10px", borderRadius: "4px" }}>
+          {error}
+        </p>
+      )}
+
+      <section style ={{ marginBottom: "20px" }}>
+        <h3>{editingProduct ? "Edit Product" : "Add Product"}</h3>
+        <form onSubmit={handleSubmit} style={{ maxWidth: "600px" }}>
+          <div style={{ marginBottom: "12px" }}>
+            <label>Name</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={(e) => handleInputChange("name", e.target.value)}
+              disabled={saving}
+              style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+            />
+          </div>
+
+          <div style={{ marginBottom: "12px" }}>
+            <label>Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => handleInputChange("description", e.target.value)}
+              disabled={saving}
+              style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+            <div>
+              <label>Category</label>
+              <input
+                type="text"
+                value={form.category}
+                onChange={e => handleInputChange("category", e.target.value)}
+                disabled={saving}
+                style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+              />
+            </div>
+            <div>
+              <label>Price</label>
+              <input
+                type="number"
+                step="0.01"
+                value={form.price}
+                onChange={e => handleInputChange("price", e.target.value)}
+                disabled={saving}
+                style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+              />
+            </div>
+            <div>
+              <label>Stock</label>
+              <input
+                type="number"
+                value={form.stock}
+                onChange={e => handleInputChange("stock", e.target.value)}
+                disabled={saving}
+                style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+              />
+            </div>
+          </div>
+
+          <button type="submit" disabled={saving} style={{ padding: "10px 16px", backgroundColor: "#000000", color: "#fff", border: "none", borderRadius: "0px", cursor: saving ? "not-allowed" : "pointer" }}>
+            {saving ? "Saving..." : editingProduct ? "Save changes" : "Create product"}
+          </button>
+
+          {editingProduct && (
+            <button type="button" 
+              onClick={resetForm} 
+              disabled={saving} 
+              style={{ padding: "10px 16px", backgroundColor: "#6c757d", color: "#fff", border: "none", borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer", marginLeft: "10px" }}
+            >
+              Cancel
+            </button>
+          )}
+        </form>
+      </section>
+
+      <section>
+        <h3>Product list</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Name</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Category</th>
+                <th style={{ textAlign: "right", padding: "10px", borderBottom: "1px solid #ddd" }}>Price</th>
+                <th style={{ textAlign: "right", padding: "10px", borderBottom: "1px solid #ddd" }}>Stock</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map(product => (
+                <tr key={product.id}>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{product.name}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{product.category}</td>
+                  <td style={{ padding: "10px", textAlign: "right", borderBottom: "1px solid #eee" }}>{product.price?.toFixed(2)}</td>
+                  <td style={{ padding: "10px", textAlign: "right", borderBottom: "1px solid #eee" }}>{product.stockQuantity}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
+                    <button
+                      onClick={() => populateForm(product)}
+                      disabled={saving}
+                      style={{ marginRight: "8px", padding: "6px 10px", borderRadius: "4px", border: "1px solid #007bff", backgroundColor: "#fff", color: "#007bff", cursor: "pointer" }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      disabled={saving}
+                      style={{ padding: "6px 10px", borderRadius: "0px", border: "1px solid #FFD700", backgroundColor: "#FFD700", color: "#000", cursor: "pointer" }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section>
+        <h3>Order Management</h3>
+        <div style={{ maxWidth: "600px" }}>
+          <label>Order ID:</label>
+          <input
+            type="text"
+            value={orderId}
+            onChange={e => setOrderId(e.target.value)}
+            disabled={saving}
+            style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+          />
+          <label>Status:</label>
+          <select
+            value={orderStatus}
+            onChange={e => setOrderStatus(e.target.value)}
+            disabled={saving}
+            style={{ width: "100%", padding: "8px", marginTop: "5px" }}
+          >
+            <option value="PENDING">PENDING</option>
+            <option value="SHIPPED">SHIPPED</option>
+            <option value="DELIVERED">DELIVERED</option>
+            <option value="CANCELLED">CANCELLED</option>
+          </select>
+          <button
+            onClick={updateOrderStatus}
+            disabled={saving}
+            style={{ padding: "10px 16px", backgroundColor: "#007bff", color: "#fff", border: "none", borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer", marginTop: "10px" }}
+          >
+            Update Status
+          </button>
+          <button
+            onClick={cancelOrder}
+            disabled={saving}
+            style={{ padding: "10px 16px", backgroundColor: "#dc3545", color: "#fff", border: "none", borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer", marginTop: "10px" }}
+          >
+            Cancel Order
+          </button>
+        </div>
+      </section>
+
+      <section style={{ marginTop: "30px" }}>
+        <h3>Order List</h3>
+        <div style={{ marginBottom: "20px" }}>
+          <select
+            value={orderSearch}
+            onChange={e => {
+              setOrderSearch(e.target.value);
+              loadOrders(e.target.value);
+            }}
+            style={{ padding: "8px", marginRight: "10px" }}
+          >
+            <option value="">All Orders</option>
+            <option value="PENDING">Pending</option>
+            <option value="PAID">Paid</option>
+            <option value="SHIPPED">Shipped</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Order ID</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>User ID</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Status</th>
+                <th style={{ textAlign: "right", padding: "10px", borderBottom: "1px solid #ddd" }}>Total Price</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Ordered Date</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map(order => (
+                <tr key={order.id} style={{ cursor: "pointer" }} onClick={() => selectOrder(order)}>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{order.id}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{order.userId}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{order.status}</td>
+                  <td style={{ padding: "10px", textAlign: "right", borderBottom: "1px solid #eee" }}>${order.totalPrice?.toFixed(2)}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{new Date(order.orderedDate).toLocaleDateString()}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); selectOrder(order); }}
+                      style={{ padding: "6px 10px", borderRadius: "4px", border: "1px solid #007bff", backgroundColor: "#fff", color: "#007bff", cursor: "pointer" }}
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
     </div>
   );
 }

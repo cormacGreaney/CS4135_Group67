@@ -28,7 +28,7 @@ function Register() {
         .then((userData) => {
           setUser(userData);
           if (userData.role === "ADMINISTRATOR") {
-            navigate("/admin-dashboard");
+            navigate("/admin");
           } else {
             navigate("/dashboard");
           }
@@ -67,7 +67,7 @@ function Register() {
       setUser(userData);
 
       if (userData.role === "ADMINISTRATOR") {
-        navigate("/admin-dashboard");
+        navigate("/admin");
       } else {
         navigate("/dashboard");
       }
