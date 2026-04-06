@@ -1,16 +1,37 @@
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
+import { apiFetch } from "../api/api.js"; // import your apiFetch
 import theme from "../styles/theme";
 
 function Cart() {
   const { cart, removeFromCart } = useContext(CartContext);
   const navigate = useNavigate();
 
+  const [user, setUser] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
   const total = cart.reduce(
     (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0),
     0
   );
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setUser(null);
+      setLoadingUser(false);
+      return;
+    }
+
+    apiFetch("/api/users/me")
+      .then((userData) => setUser(userData))
+      .catch(() => {
+        localStorage.removeItem("token");
+        setUser(null);
+      })
+      .finally(() => setLoadingUser(false));
+  }, []);
 
   return (
     <div style={{ maxWidth: "720px", margin: "0 auto", padding: "48px 40px" }}>
@@ -134,23 +155,50 @@ function Cart() {
             </span>
           </div>
 
-          <button
-            onClick={() => navigate("/checkout")}
-            style={{
-              width: "100%",
-              background: theme.buttonPrimary,
-              color: theme.buttonPrimaryText,
-              border: "none",
-              padding: "16px",
-              fontSize: "12px",
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              cursor: "pointer",
-              borderRadius: "2px",
-            }}
-          >
-            Proceed to Checkout
-          </button>
+          {loadingUser ? (
+            <p style={{ color: theme.textMuted, marginBottom: "16px" }}>Checking login status...</p>
+          ) : !user ? (
+            <>
+              <p style={{ color: theme.textMuted, marginBottom: "16px" }}>
+                You must be logged in to checkout.
+              </p>
+              <button
+                onClick={() => navigate("/login")}
+                style={{
+                  width: "100%",
+                  background: theme.buttonPrimary,
+                  color: theme.buttonPrimaryText,
+                  border: "none",
+                  padding: "16px",
+                  fontSize: "12px",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  borderRadius: "2px",
+                }}
+              >
+                Login to Checkout
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => navigate("/checkout")}
+              style={{
+                width: "100%",
+                background: theme.buttonPrimary,
+                color: theme.buttonPrimaryText,
+                border: "none",
+                padding: "16px",
+                fontSize: "12px",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                borderRadius: "2px",
+              }}
+            >
+              Proceed to Checkout
+            </button>
+          )}
         </>
       )}
     </div>
