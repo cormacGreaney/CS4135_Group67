@@ -16,6 +16,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.cs4135.group3.payment_service.domain.Payment;
 import com.cs4135.group3.payment_service.domain.PaymentStatus;
+import com.cs4135.group3.payment_service.integration.OrderPaymentCallbackClient;
+import com.cs4135.group3.payment_service.messaging.PaymentCompletedMessage;
+import com.cs4135.group3.payment_service.messaging.PaymentCompletedPublisher;
 import com.cs4135.group3.payment_service.repository.PaymentRepository;
 import com.cs4135.group3.payment_service.web.dto.CardCheckoutRequest;
 import com.cs4135.group3.payment_service.web.dto.CreatePaymentRequest;
@@ -25,9 +28,16 @@ import com.cs4135.group3.payment_service.web.dto.PaymentResponse;
 public class PaymentService {
 
 	private final PaymentRepository paymentRepository;
+	private final PaymentCompletedPublisher paymentCompletedPublisher;
+	private final OrderPaymentCallbackClient orderPaymentCallbackClient;
 
-	public PaymentService(PaymentRepository paymentRepository) {
+	public PaymentService(
+			PaymentRepository paymentRepository,
+			PaymentCompletedPublisher paymentCompletedPublisher,
+			OrderPaymentCallbackClient orderPaymentCallbackClient) {
 		this.paymentRepository = paymentRepository;
+		this.paymentCompletedPublisher = paymentCompletedPublisher;
+		this.orderPaymentCallbackClient = orderPaymentCallbackClient;
 	}
 
 	@Transactional
@@ -51,6 +61,10 @@ public class PaymentService {
 	public PaymentResponse checkoutCard(CardCheckoutRequest req, Authentication authentication) {
 		Long userId = parseUserId(authentication);
 
+		if (paymentRepository.existsByOrderId(req.orderId())) {
+			throw new ResponseStatusException(BAD_REQUEST, "Payment already exists for this order");
+		}
+
 		if (!passesLuhn(req.cardNumber())) {
 			throw new ResponseStatusException(BAD_REQUEST, "Card number failed validation");
 		}
@@ -68,6 +82,16 @@ public class PaymentService {
 		payment.setPaymentDate(Instant.now());
 
 		paymentRepository.save(payment);
+
+		PaymentCompletedMessage completed = new PaymentCompletedMessage(
+				payment.getId(),
+				payment.getOrderId(),
+				payment.getUserId(),
+				payment.getAmount(),
+				payment.getStatus().name());
+		paymentCompletedPublisher.publish(completed);
+		orderPaymentCallbackClient.notifyOrderService(completed);
+
 		return toResponse(payment);
 	}
 
