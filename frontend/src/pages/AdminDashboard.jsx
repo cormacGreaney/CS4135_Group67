@@ -203,7 +203,7 @@ function AdminDashboard() {
             </div>
           </div>
 
-          <button type="submit" disabled={saving} style={{ padding: "10px 16px", backgroundColor: "#007bff", color: "#fff", border: "none", borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer" }}>
+          <button type="submit" disabled={saving} style={{ padding: "10px 16px", backgroundColor: "#000000", color: "#fff", border: "none", borderRadius: "0px", cursor: saving ? "not-allowed" : "pointer" }}>
             {saving ? "Saving..." : editingProduct ? "Save changes" : "Create product"}
           </button>
 
@@ -217,6 +217,49 @@ function AdminDashboard() {
             </button>
           )}
         </form>
+      </section>
+
+      <section>
+        <h3>Product list</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Name</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Category</th>
+                <th style={{ textAlign: "right", padding: "10px", borderBottom: "1px solid #ddd" }}>Price</th>
+                <th style={{ textAlign: "right", padding: "10px", borderBottom: "1px solid #ddd" }}>Stock</th>
+                <th style={{ textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map(product => (
+                <tr key={product.id}>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{product.name}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>{product.category}</td>
+                  <td style={{ padding: "10px", textAlign: "right", borderBottom: "1px solid #eee" }}>{product.price?.toFixed(2)}</td>
+                  <td style={{ padding: "10px", textAlign: "right", borderBottom: "1px solid #eee" }}>{product.stockQuantity}</td>
+                  <td style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
+                    <button
+                      onClick={() => populateForm(product)}
+                      disabled={saving}
+                      style={{ marginRight: "8px", padding: "6px 10px", borderRadius: "4px", border: "1px solid #007bff", backgroundColor: "#fff", color: "#007bff", cursor: "pointer" }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      disabled={saving}
+                      style={{ padding: "6px 10px", borderRadius: "4px", border: "1px solid #dc2626", backgroundColor: "#dc2626", color: "#fff", cursor: "pointer" }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );
