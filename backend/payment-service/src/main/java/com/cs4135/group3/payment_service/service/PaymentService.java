@@ -1,9 +1,11 @@
 package com.cs4135.group3.payment_service.service;
 
 import java.time.Instant;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import org.springframework.security.core.Authentication;
@@ -14,7 +16,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.cs4135.group3.payment_service.domain.Payment;
 import com.cs4135.group3.payment_service.domain.PaymentStatus;
+import com.cs4135.group3.payment_service.integration.OrderPaymentCallbackClient;
+import com.cs4135.group3.payment_service.messaging.PaymentCompletedMessage;
+import com.cs4135.group3.payment_service.messaging.PaymentCompletedPublisher;
 import com.cs4135.group3.payment_service.repository.PaymentRepository;
+import com.cs4135.group3.payment_service.web.dto.CardCheckoutRequest;
 import com.cs4135.group3.payment_service.web.dto.CreatePaymentRequest;
 import com.cs4135.group3.payment_service.web.dto.PaymentResponse;
 
@@ -22,9 +28,16 @@ import com.cs4135.group3.payment_service.web.dto.PaymentResponse;
 public class PaymentService {
 
 	private final PaymentRepository paymentRepository;
+	private final PaymentCompletedPublisher paymentCompletedPublisher;
+	private final OrderPaymentCallbackClient orderPaymentCallbackClient;
 
-	public PaymentService(PaymentRepository paymentRepository) {
+	public PaymentService(
+			PaymentRepository paymentRepository,
+			PaymentCompletedPublisher paymentCompletedPublisher,
+			OrderPaymentCallbackClient orderPaymentCallbackClient) {
 		this.paymentRepository = paymentRepository;
+		this.paymentCompletedPublisher = paymentCompletedPublisher;
+		this.orderPaymentCallbackClient = orderPaymentCallbackClient;
 	}
 
 	@Transactional
@@ -42,6 +55,67 @@ public class PaymentService {
 
 		paymentRepository.save(payment);
 		return toResponse(payment);
+	}
+
+	@Transactional
+	public PaymentResponse checkoutCard(CardCheckoutRequest req, Authentication authentication) {
+		Long userId = parseUserId(authentication);
+
+		if (paymentRepository.existsByOrderId(req.orderId())) {
+			throw new ResponseStatusException(BAD_REQUEST, "Payment already exists for this order");
+		}
+
+		if (!passesLuhn(req.cardNumber())) {
+			throw new ResponseStatusException(BAD_REQUEST, "Card number failed validation");
+		}
+
+		boolean approved = !isExpired(req.expiryMonth(), req.expiryYear())
+				&& !req.cardNumber().endsWith("0000");
+
+		Payment payment = new Payment();
+		payment.setId(UUID.randomUUID());
+		payment.setOrderId(req.orderId());
+		payment.setUserId(userId);
+		payment.setAmount(req.amount());
+		payment.setProvider("sim-card");
+		payment.setStatus(approved ? PaymentStatus.SUCCESS : PaymentStatus.FAILED);
+		payment.setPaymentDate(Instant.now());
+
+		paymentRepository.save(payment);
+
+		PaymentCompletedMessage completed = new PaymentCompletedMessage(
+				payment.getId(),
+				payment.getOrderId(),
+				payment.getUserId(),
+				payment.getAmount(),
+				payment.getStatus().name());
+		paymentCompletedPublisher.publish(completed);
+		orderPaymentCallbackClient.notifyOrderService(completed);
+
+		return toResponse(payment);
+	}
+
+	private static boolean isExpired(Integer expiryMonth, Integer expiryYear) {
+		YearMonth now = YearMonth.now();
+		YearMonth cardExpiry = YearMonth.of(expiryYear, expiryMonth);
+		return cardExpiry.isBefore(now);
+	}
+
+	private static boolean passesLuhn(String cardNumber) {
+		int sum = 0;
+		boolean shouldDouble = false;
+		for (int i = cardNumber.length() - 1; i >= 0; i--) {
+			int digit = cardNumber.charAt(i) - '0';
+			if (shouldDouble) {
+				digit *= 2;
+				if (digit > 9) {
+					digit -= 9;
+				}
+			}
+			sum += digit;
+			shouldDouble = !shouldDouble;
+		}
+		return sum % 10 == 0;
 	}
 
 	public PaymentResponse getById(UUID id, Authentication authentication) {
