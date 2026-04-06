@@ -22,6 +22,7 @@ import com.cs4135.group3.order_service.model.Order;
 import com.cs4135.group3.order_service.model.OrderItem;
 import com.cs4135.group3.order_service.model.OrderStatus;
 import com.cs4135.group3.order_service.repository.OrderRepository;
+import com.cs4135.group3.order_service.requests.AddOrderItemRequest;
 import com.cs4135.group3.order_service.requests.OrderRequest;
 
 import lombok.RequiredArgsConstructor;
@@ -129,6 +130,53 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
+    public Order addItem(Long orderId, AddOrderItemRequest request, Authentication authentication) {
+        Order order = loadPendingOrderForMutation(orderId, authentication);
+
+        OrderItem item = new OrderItem();
+        item.setProductId(request.productId());
+        item.setProductName(request.productName().trim());
+        item.setPrice(request.price());
+        item.setQuantity(request.quantity());
+        item.setOrder(order);
+        order.getOrderItems().add(item);
+
+        recalculateTotal(order);
+        return orderRepository.save(order);
+    }
+
+    public Order removeItem(Long orderId, Long itemId, Authentication authentication) {
+        Order order = loadPendingOrderForMutation(orderId, authentication);
+        OrderItem item = findOrderItem(order, itemId);
+        order.getOrderItems().remove(item);
+
+        recalculateTotal(order);
+        return orderRepository.save(order);
+    }
+
+    public Order increaseItemQuantity(Long orderId, Long itemId, Integer amount, Authentication authentication) {
+        validatePositiveAmount(amount);
+        Order order = loadPendingOrderForMutation(orderId, authentication);
+        OrderItem item = findOrderItem(order, itemId);
+        item.setQuantity(item.getQuantity() + amount);
+
+        recalculateTotal(order);
+        return orderRepository.save(order);
+    }
+
+    public Order decreaseItemQuantity(Long orderId, Long itemId, Integer amount, Authentication authentication) {
+        validatePositiveAmount(amount);
+        Order order = loadPendingOrderForMutation(orderId, authentication);
+        OrderItem item = findOrderItem(order, itemId);
+        if (item.getQuantity() - amount < 1) {
+            throw new ResponseStatusException(FORBIDDEN, "Quantity cannot be reduced below 1");
+        }
+        item.setQuantity(item.getQuantity() - amount);
+
+        recalculateTotal(order);
+        return orderRepository.save(order);
+    }
+
 
     @Transactional
     public void applyPaymentResult(PaymentCompletedMessage msg) {
@@ -163,6 +211,36 @@ public class OrderService {
 
     private void enforceOwnership(Order order, Authentication authentication, String message) {
         enforceSameUserOrAdmin(order.getUserId(), authentication, message);
+    }
+
+    private Order loadPendingOrderForMutation(Long orderId, Authentication authentication) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Order not found"));
+        enforceOwnership(order, authentication, "You can only modify your own orders");
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new ResponseStatusException(FORBIDDEN, "Only pending orders can be modified");
+        }
+        return order;
+    }
+
+    private OrderItem findOrderItem(Order order, Long itemId) {
+        return order.getOrderItems().stream()
+                .filter(item -> itemId.equals(item.getId()))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Order item not found"));
+    }
+
+    private void recalculateTotal(Order order) {
+        BigDecimal total = order.getOrderItems().stream()
+                .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        order.setTotalPrice(total);
+    }
+
+    private void validatePositiveAmount(Integer amount) {
+        if (amount == null || amount < 1) {
+            throw new ResponseStatusException(FORBIDDEN, "Amount must be greater than zero");
+        }
     }
 
     private void enforceSameUserOrAdmin(Long userId, Authentication authentication, String message) {
