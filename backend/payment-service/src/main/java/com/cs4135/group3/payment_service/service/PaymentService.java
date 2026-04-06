@@ -1,9 +1,11 @@
 package com.cs4135.group3.payment_service.service;
 
 import java.time.Instant;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import org.springframework.security.core.Authentication;
@@ -45,11 +47,51 @@ public class PaymentService {
 		return toResponse(payment);
 	}
 
-	// will replace this with real card simulation rules
 	@Transactional
 	public PaymentResponse checkoutCard(CardCheckoutRequest req, Authentication authentication) {
-		CreatePaymentRequest mapped = new CreatePaymentRequest(req.orderId(), req.amount(), "sim-card", false);
-		return create(mapped, authentication);
+		Long userId = parseUserId(authentication);
+
+		if (!passesLuhn(req.cardNumber())) {
+			throw new ResponseStatusException(BAD_REQUEST, "Card number failed validation");
+		}
+
+		boolean approved = !isExpired(req.expiryMonth(), req.expiryYear())
+				&& !req.cardNumber().endsWith("0000");
+
+		Payment payment = new Payment();
+		payment.setId(UUID.randomUUID());
+		payment.setOrderId(req.orderId());
+		payment.setUserId(userId);
+		payment.setAmount(req.amount());
+		payment.setProvider("sim-card");
+		payment.setStatus(approved ? PaymentStatus.SUCCESS : PaymentStatus.FAILED);
+		payment.setPaymentDate(Instant.now());
+
+		paymentRepository.save(payment);
+		return toResponse(payment);
+	}
+
+	private static boolean isExpired(Integer expiryMonth, Integer expiryYear) {
+		YearMonth now = YearMonth.now();
+		YearMonth cardExpiry = YearMonth.of(expiryYear, expiryMonth);
+		return cardExpiry.isBefore(now);
+	}
+
+	private static boolean passesLuhn(String cardNumber) {
+		int sum = 0;
+		boolean shouldDouble = false;
+		for (int i = cardNumber.length() - 1; i >= 0; i--) {
+			int digit = cardNumber.charAt(i) - '0';
+			if (shouldDouble) {
+				digit *= 2;
+				if (digit > 9) {
+					digit -= 9;
+				}
+			}
+			sum += digit;
+			shouldDouble = !shouldDouble;
+		}
+		return sum % 10 == 0;
 	}
 
 	public PaymentResponse getById(UUID id, Authentication authentication) {
