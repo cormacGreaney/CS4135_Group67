@@ -1,0 +1,71 @@
+# Simulated card checkout (full flow via API gateway :8080)
+
+# REMEMBER TO PASTE THE JWT FROM THE LOGIN RESPONSE INTO THE @token VARIABLE <---------------------------------->
+
+@baseUrl = http://localhost:8080
+@token = PASTE_JWT_HERE_FROM_AFTER_LOGIN
+@orderId = PASTE_ORDER_ID_HERE_FROM_CREATE_ORDER_RESPONSE
+@orderTotal = 51.00
+
+### Register (optional if you already have a user)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "checkout-demo@example.com",
+  "password": "password12"
+}
+
+### Login — copy accessToken into @token above
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "checkout-demo@example.com",
+  "password": "password12"
+}
+
+### Who am I (optional)
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Create order — requires JWT; userId in body is ignored (comes from token)
+POST {{baseUrl}}/api/order
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "id": null,
+  "userId": null,
+  "orderNumber": null,
+  "items": [
+    {
+      "productId": 102,
+      "productName": "Demo items",
+      "price": 25.50,
+      "quantity": 2
+    }
+  ]
+}
+
+### Get order — expect status PENDING until checkout-card succeeds (set @orderId from create response)
+GET {{baseUrl}}/api/order/{{orderId}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Card checkout — amount MUST match order totalPrice (e.g. 51.00 for two items at 25.50)
+# Valid Luhn test card number: 4242424242424242
+POST {{baseUrl}}/api/payments/checkout-card
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "orderId": {{orderId}},
+  "amount": {{orderTotal}},
+  "cardNumber": "4242424242424242",
+  "cardHolderName": "Demo User",
+  "expiryMonth": 12,
+  "expiryYear": 2030,
+  "cvv": "123"
+}

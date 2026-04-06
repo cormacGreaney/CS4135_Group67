@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -21,12 +22,16 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -72,7 +77,7 @@ class ProductApiIntegrationTest {
     void getByIdReturnsProduct() throws Exception {
         mockMvc.perform(get("/api/products/b0000000-0000-4000-8000-000000000011"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Guinness Draught Stout"));
+                .andExpect(jsonPath("$.name").value("Guinness Draught 8 x 500ml"));
     }
 
     @Test
@@ -211,6 +216,9 @@ class ProductApiIntegrationTest {
                                         "productId", "a0000000-0000-4000-8000-000000000001",
                                         "quantity", 1))))))
                 .andExpect(status().isUnauthorized());
+    void getImageWhenMissingReturns404() throws Exception {
+        mockMvc.perform(get("/api/products/b0000000-0000-4000-8000-000000000014/image"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -302,5 +310,25 @@ class ProductApiIntegrationTest {
         mockMvc.perform(get("/api/products/a0000000-0000-4000-8000-000000000003"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.stockQuantity").value(45));
+    void putImageWithAdminThenGetImage() throws Exception {
+        String token = JwtTestTokens.accessToken("2", "ADMINISTRATOR");
+        byte[] pngBytes = new byte[] {1, 2, 3, 4};
+        mockMvc.perform(multipart("/api/products/b0000000-0000-4000-8000-000000000014/image")
+                        .file(new MockMultipartFile("file", "tiny.png", "image/png", pngBytes))
+                        .with(req -> {
+                            req.setMethod("PUT");
+                            return req;
+                        })
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/products/b0000000-0000-4000-8000-000000000014"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasImage").value(true));
+
+        mockMvc.perform(get("/api/products/b0000000-0000-4000-8000-000000000014/image"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", containsString("image/png")))
+                .andExpect(content().bytes(pngBytes));
     }
 }
