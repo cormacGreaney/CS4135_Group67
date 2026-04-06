@@ -12,6 +12,7 @@ public record ProductResponse(
 		BigDecimal price,
 		int stockQuantity,
 		String category,
-		Instant createdAt
+		Instant createdAt,
+		boolean hasImage
 ) {
 }

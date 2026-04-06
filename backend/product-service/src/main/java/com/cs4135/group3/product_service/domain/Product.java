@@ -1,10 +1,13 @@
 package com.cs4135.group3.product_service.domain;
 
+import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -40,6 +43,18 @@ public class Product {
 
 	@Column(nullable = false)
 	private String category;
+
+	@Lob
+	@Basic(fetch = FetchType.LAZY)
+	@JdbcTypeCode(SqlTypes.BLOB)
+	@Column(name = "image_data", columnDefinition = "LONGBLOB")
+	private byte[] imageData;
+
+	@Column(name = "image_content_type", length = 100)
+	private String imageContentType;
+
+	@Column(name = "has_image", nullable = false)
+	private boolean hasImage;
 
 	// If this is set, the product is treated as deleted and won't show in the shop
 	@Column(name = "deleted_at")
@@ -95,6 +110,30 @@ public class Product {
 
 	public void setCategory(String category) {
 		this.category = category;
+	}
+
+	public byte[] getImageData() {
+		return imageData;
+	}
+
+	public void setImageData(byte[] imageData) {
+		this.imageData = imageData;
+	}
+
+	public String getImageContentType() {
+		return imageContentType;
+	}
+
+	public void setImageContentType(String imageContentType) {
+		this.imageContentType = imageContentType;
+	}
+
+	public boolean isHasImage() {
+		return hasImage;
+	}
+
+	public void setHasImage(boolean hasImage) {
+		this.hasImage = hasImage;
 	}
 
 	public Instant getDeletedAt() {
