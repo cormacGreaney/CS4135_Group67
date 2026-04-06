@@ -430,7 +430,7 @@ function AdminDashboard() {
           </section>
 
           <section style={{ backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}` }}>
-            <h3 style={{ color: theme.textPrimary, marginBottom: "15px" }}>Product List</h3>
+            <h3 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, margin: "0 0 18px 0", fontSize: "20px", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "10px" }}>Product List</h3>
             <div style={{ marginBottom: "20px" }}>
               <select
                 value={productSort}
