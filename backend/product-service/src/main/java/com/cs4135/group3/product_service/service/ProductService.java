@@ -18,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 // All rules for listing, loading, creating, updating, and "deleting" products.
@@ -88,5 +89,28 @@ public class ProductService {
 				.orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 		// We don't remove the row from the database — we just mark it deleted
 		p.setDeletedAt(Instant.now());
+	}
+	@Transactional
+	public void deductStock(List<StockDeduction> deductions) {
+		for (StockDeduction deduction : deductions) {
+			if (deduction.quantity() == null || deduction.quantity() <= 0) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stock deduction quantity must be positive");
+			}
+
+			// Lock the row while adjusting stock so concurrent orders cannot oversell the same product.
+			Product product = productRepository.findWithLockByIdAndDeletedAtIsNull(deduction.productId())
+					.orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
+			if (product.getStockQuantity() < deduction.quantity()) {
+				throw new ResponseStatusException(
+						HttpStatus.CONFLICT,
+						"Insufficient stock for product " + deduction.productId());
+			}
+
+			product.setStockQuantity(product.getStockQuantity() - deduction.quantity());
+		}
+	}
+
+	public record StockDeduction(UUID productId, Integer quantity) {
 	}
 }

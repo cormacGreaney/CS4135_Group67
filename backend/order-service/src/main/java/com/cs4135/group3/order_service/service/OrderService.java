@@ -2,6 +2,7 @@ package com.cs4135.group3.order_service.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,12 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.cs4135.group3.order_service.events.OrderCreatedEvent;
+import com.cs4135.group3.order_service.integration.ProductStockClient;
 import com.cs4135.group3.order_service.messaging.OrderCreatedRabbitPublisher;
 import com.cs4135.group3.order_service.messaging.PaymentCompletedMessage;
 import com.cs4135.group3.order_service.model.Order;
 import com.cs4135.group3.order_service.model.OrderItem;
 import com.cs4135.group3.order_service.model.OrderStatus;
 import com.cs4135.group3.order_service.repository.OrderRepository;
+import com.cs4135.group3.order_service.requests.OrderItemRequest;
 import com.cs4135.group3.order_service.requests.OrderRequest;
 
 import lombok.RequiredArgsConstructor;
@@ -34,6 +37,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final OrderCreatedRabbitPublisher orderCreatedRabbitPublisher;
+    private final ProductStockClient productStockClient;
 
     public Order createOrder(OrderRequest orderRequest, Authentication authentication)
     {
@@ -54,26 +58,11 @@ public class OrderService {
         // Convert incoming request items into persistent order items linked back to this order.
         List<OrderItem> orderItems = orderRequest.items()
                 .stream()
-                .map(itemRequest -> {
-                    OrderItem item = new OrderItem();
-                    item.setProductId(itemRequest.productId());
-                    item.setProductName(itemRequest.productName());
-                    item.setPrice(itemRequest.price());
-                    item.setQuantity(itemRequest.quantity());
-                    item.setOrder(order);
-                    return item;
-                })
+                .map(itemRequest -> toOrderItem(order, itemRequest))
                 .toList();
 
         order.setOrderItems(orderItems);
-
-        // Total price is the sum of each item's price multiplied by its quantity.
-        BigDecimal total = orderItems.stream()
-                .map(item -> item.getPrice()
-                        .multiply(BigDecimal.valueOf(item.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        order.setTotalPrice(total);
+        recalculateTotal(order);
 
         Order savedOrder = orderRepository.save(order);
 
@@ -89,6 +78,29 @@ public class OrderService {
         orderCreatedRabbitPublisher.publish(created);
 
         return savedOrder;
+    }
+
+    public Order addItem(Long orderId, OrderItemRequest itemRequest, Authentication authentication) {
+        Order order = getMutableOrder(orderId, authentication);
+        List<OrderItem> items = order.getOrderItems() == null ? new ArrayList<>() : new ArrayList<>(order.getOrderItems());
+        // Work on a mutable copy so JPA can detect both additions and removals when we replace the collection.
+        items.add(toOrderItem(order, itemRequest));
+        order.setOrderItems(items);
+        recalculateTotal(order);
+        return orderRepository.save(order);
+    }
+
+    public Order removeItem(Long orderId, Long itemId, Authentication authentication) {
+        Order order = getMutableOrder(orderId, authentication);
+        List<OrderItem> items = order.getOrderItems() == null ? new ArrayList<>() : new ArrayList<>(order.getOrderItems());
+        boolean removed = items.removeIf(item -> itemId.equals(item.getId()));
+        if (!removed) {
+            throw new ResponseStatusException(NOT_FOUND, "Order item not found");
+        }
+
+        order.setOrderItems(items);
+        recalculateTotal(order);
+        return orderRepository.save(order);
     }
 
     public List<Order> getOrdersByUserId(Long userId, Authentication authentication)
@@ -144,6 +156,8 @@ public class OrderService {
         }
 
         if ("SUCCESS".equalsIgnoreCase(msg.status())) {
+            // Only deduct inventory once payment has actually succeeded.
+            productStockClient.deductStock(order);
             order.setStatus(OrderStatus.PAID);
         }
         else {
@@ -155,6 +169,35 @@ public class OrderService {
 
     private void enforceOwnership(Order order, Authentication authentication, String message) {
         enforceSameUserOrAdmin(order.getUserId(), authentication, message);
+    }
+
+    private Order getMutableOrder(Long orderId, Authentication authentication) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Order not found"));
+        enforceOwnership(order, authentication, "You can only modify your own orders");
+        // Once payment has progressed beyond pending, line items must stop changing.
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new ResponseStatusException(FORBIDDEN, "Only pending orders can be modified");
+        }
+        return order;
+    }
+
+    private OrderItem toOrderItem(Order order, OrderItemRequest itemRequest) {
+        OrderItem item = new OrderItem();
+        item.setProductId(itemRequest.productId());
+        item.setProductName(itemRequest.productName());
+        item.setPrice(itemRequest.price());
+        item.setQuantity(itemRequest.quantity());
+        item.setOrder(order);
+        return item;
+    }
+
+    private void recalculateTotal(Order order) {
+        // Keep the stored order total aligned with the current set of order items.
+        BigDecimal total = order.getOrderItems().stream()
+                .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        order.setTotalPrice(total);
     }
 
     private void enforceSameUserOrAdmin(Long userId, Authentication authentication, String message) {

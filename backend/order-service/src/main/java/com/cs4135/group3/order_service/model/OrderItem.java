@@ -1,9 +1,9 @@
 package com.cs4135.group3.order_service.model;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -11,6 +11,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Column;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,7 +31,9 @@ public class OrderItem
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long productId;
+    @JdbcTypeCode(SqlTypes.UUID)
+    @Column(columnDefinition = "BINARY(16)")
+    private UUID productId;
 
     private String productName;
 

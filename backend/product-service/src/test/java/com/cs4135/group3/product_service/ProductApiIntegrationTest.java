@@ -18,6 +18,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.hasItem;
@@ -63,7 +64,7 @@ class ProductApiIntegrationTest {
     void listIsPublicAndReturnsSeededProducts() throws Exception {
         mockMvc.perform(get("/api/products"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(13)));
+                .andExpect(jsonPath("$.content", hasSize(16)));
     }
 
     @Test
@@ -197,5 +198,109 @@ class ProductApiIntegrationTest {
         mockMvc.perform(get("/api/products").param("q", "37.5%"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[*].name", hasItem("Smirnoff No.21 Red Label Vodka Bottle 37.5% Vol 1L")));
+    }
+
+    @Test
+    @Order(11)
+    void internalDeductStockRequiresInternalToken() throws Exception {
+        mockMvc.perform(post("/internal/products/stock/deduct")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "orderId", 1,
+                                "items", List.of(Map.of(
+                                        "productId", "a0000000-0000-4000-8000-000000000001",
+                                        "quantity", 1))))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @Order(12)
+    void internalDeductStockUpdatesInventory() throws Exception {
+        mockMvc.perform(post("/internal/products/stock/deduct")
+                        .header("X-Internal-Token", "dev-internal-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "orderId", 2,
+                                "items", List.of(Map.of(
+                                        "productId", "a0000000-0000-4000-8000-000000000001",
+                                        "quantity", 5))))))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/products/a0000000-0000-4000-8000-000000000001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stockQuantity").value(115));
+    }
+
+    @Test
+    @Order(13)
+    void internalDeductStockRejectsInsufficientInventory() throws Exception {
+        mockMvc.perform(post("/internal/products/stock/deduct")
+                        .header("X-Internal-Token", "dev-internal-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "orderId", 3,
+                                "items", List.of(Map.of(
+                                        "productId", "a0000000-0000-4000-8000-000000000003",
+                                        "quantity", 1000))))))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(get("/api/products/a0000000-0000-4000-8000-000000000003"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stockQuantity").value(45));
+    }
+
+    @Test
+    @Order(14)
+    void internalDeductStockRejectsNonPositiveQuantity() throws Exception {
+        mockMvc.perform(post("/internal/products/stock/deduct")
+                        .header("X-Internal-Token", "dev-internal-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "orderId", 4,
+                                "items", List.of(Map.of(
+                                        "productId", "a0000000-0000-4000-8000-000000000001",
+                                        "quantity", 0))))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Stock deduction quantity must be positive"));
+    }
+
+    @Test
+    @Order(15)
+    void internalDeductStockReturnsNotFoundForUnknownProduct() throws Exception {
+        mockMvc.perform(post("/internal/products/stock/deduct")
+                        .header("X-Internal-Token", "dev-internal-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "orderId", 5,
+                                "items", List.of(Map.of(
+                                        "productId", "a0000000-0000-4000-8000-999999999999",
+                                        "quantity", 1))))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @Order(16)
+    void internalDeductStockRollsBackAllItemsWhenOneFails() throws Exception {
+        mockMvc.perform(post("/internal/products/stock/deduct")
+                        .header("X-Internal-Token", "dev-internal-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "orderId", 6,
+                                "items", List.of(
+                                        Map.of(
+                                                "productId", "a0000000-0000-4000-8000-000000000002",
+                                                "quantity", 2),
+                                        Map.of(
+                                                "productId", "a0000000-0000-4000-8000-000000000003",
+                                                "quantity", 1000))))))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(get("/api/products/a0000000-0000-4000-8000-000000000002"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stockQuantity").value(300));
+
+        mockMvc.perform(get("/api/products/a0000000-0000-4000-8000-000000000003"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stockQuantity").value(45));
     }
 }

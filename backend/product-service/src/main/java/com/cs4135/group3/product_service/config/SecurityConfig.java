@@ -37,6 +37,7 @@ public class SecurityConfig {
 						.accessDeniedHandler(accessDeniedHandler(objectMapper)))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/error").permitAll()
+						.requestMatchers("/internal/**").permitAll()
 						// No login needed to list or view products
 						.requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**").permitAll()
 						// Add, change, or remove products — logged-in admin only

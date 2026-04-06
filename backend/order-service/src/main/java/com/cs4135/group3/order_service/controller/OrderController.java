@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cs4135.group3.order_service.model.OrderStatus;
+import com.cs4135.group3.order_service.requests.OrderItemRequest;
 import com.cs4135.group3.order_service.requests.OrderRequest;
 import com.cs4135.group3.order_service.service.OrderService;
 import com.cs4135.group3.order_service.web.dto.OrderResponse;
@@ -34,6 +36,16 @@ public class OrderController
     public OrderResponse createOrder(@RequestBody OrderRequest orderRequest, Authentication authentication)
     {
         return OrderResponse.fromEntity(orderService.createOrder(orderRequest, authentication));
+    }
+
+    @PostMapping("/{orderId}/items")
+    public OrderResponse addItem(
+            @PathVariable Long orderId,
+            @RequestBody OrderItemRequest itemRequest,
+            Authentication authentication)
+    {
+        // Lets a customer adjust basket contents before the order leaves PENDING.
+        return OrderResponse.fromEntity(orderService.addItem(orderId, itemRequest, authentication));
     }
 
     @GetMapping("/user/{userId}")
@@ -62,5 +74,15 @@ public class OrderController
     public OrderResponse cancelOrder(@PathVariable Long orderId, Authentication authentication)
     {
         return OrderResponse.fromEntity(orderService.cancelOrder(orderId, authentication));
+    }
+
+    @DeleteMapping("/{orderId}/items/{itemId}")
+    public OrderResponse removeItem(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            Authentication authentication)
+    {
+        // Removes one existing order line and returns the updated order snapshot.
+        return OrderResponse.fromEntity(orderService.removeItem(orderId, itemId, authentication));
     }
 }

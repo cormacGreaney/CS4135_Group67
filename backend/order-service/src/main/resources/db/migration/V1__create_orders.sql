@@ -11,7 +11,7 @@ CREATE TABLE orders (
 
 CREATE TABLE order_items (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    product_id BIGINT,
+    product_id BINARY(16),
     product_name VARCHAR(255),
     price DECIMAL(19, 2),
     quantity INT,

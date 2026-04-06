@@ -17,6 +17,8 @@ import static org.mockito.ArgumentMatchers.any;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -28,7 +30,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.cs4135.group3.order_service.events.OrderCreatedEvent;
+import com.cs4135.group3.order_service.integration.ProductStockClient;
 import com.cs4135.group3.order_service.messaging.OrderCreatedRabbitPublisher;
+import com.cs4135.group3.order_service.messaging.PaymentCompletedMessage;
 import com.cs4135.group3.order_service.model.Order;
 import com.cs4135.group3.order_service.model.OrderItem;
 import com.cs4135.group3.order_service.model.OrderStatus;
@@ -52,6 +56,9 @@ class OrderServiceTest {
 
     @Mock
     private OrderCreatedRabbitPublisher orderCreatedRabbitPublisher;
+
+    @Mock
+    private ProductStockClient productStockClient;
 
     @InjectMocks
     private OrderService orderService;
@@ -78,7 +85,7 @@ class OrderServiceTest {
                 null,
                 42L,
                 null,
-                List.of(new OrderItemRequest(1L, "Mouse", new BigDecimal("49.99"), 3))
+                List.of(new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000001"), "Mouse", new BigDecimal("49.99"), 3))
         );
 
         orderService.createOrder(request, CUSTOMER_AUTH);
@@ -107,7 +114,7 @@ class OrderServiceTest {
                 null,
                 7L,
                 "request-order-number",
-                List.of(new OrderItemRequest(2L, "Desk Lamp", new BigDecimal("15.50"), 1))
+                List.of(new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000002"), "Desk Lamp", new BigDecimal("15.50"), 1))
         );
 
         orderService.createOrder(request, ADMIN_AUTH);
@@ -128,7 +135,7 @@ class OrderServiceTest {
                 null,
                 11L,
                 null,
-                List.of(new OrderItemRequest(3L, "Keyboard", new BigDecimal("120.00"), 2))
+                List.of(new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000003"), "Keyboard", new BigDecimal("120.00"), 2))
         );
 
         orderService.createOrder(request, auth("11", "ROLE_CUSTOMER"));
@@ -145,8 +152,8 @@ class OrderServiceTest {
                 42L,
                 null,
                 List.of(
-                        new OrderItemRequest(1L, "Mouse", new BigDecimal("20.00"), 2),
-                        new OrderItemRequest(2L, "Keyboard", new BigDecimal("50.00"), 1))
+                        new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000001"), "Mouse", new BigDecimal("20.00"), 2),
+                        new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000002"), "Keyboard", new BigDecimal("50.00"), 1))
         );
 
         orderService.createOrder(request, CUSTOMER_AUTH);
@@ -166,7 +173,7 @@ class OrderServiceTest {
                 null,
                 12L,
                 null,
-                List.of(new OrderItemRequest(1L, "Headphones", new BigDecimal("35.00"), 1))
+                List.of(new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000001"), "Headphones", new BigDecimal("35.00"), 1))
         );
 
         orderService.createOrder(request, auth("12", "ROLE_CUSTOMER"));
@@ -188,8 +195,8 @@ class OrderServiceTest {
                 21L,
                 null,
                 List.of(
-                        new OrderItemRequest(1L, "Mouse", new BigDecimal("20.00"), 1),
-                        new OrderItemRequest(2L, "Keyboard", new BigDecimal("45.00"), 1))
+                        new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000001"), "Mouse", new BigDecimal("20.00"), 1),
+                        new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000002"), "Keyboard", new BigDecimal("45.00"), 1))
         );
 
         orderService.createOrder(request, auth("21", "ROLE_CUSTOMER"));
@@ -208,7 +215,7 @@ class OrderServiceTest {
                 null,
                 33L,
                 null,
-                List.of(new OrderItemRequest(5L, "Webcam", new BigDecimal("80.00"), 2))
+                List.of(new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000005"), "Webcam", new BigDecimal("80.00"), 2))
         );
 
         orderService.createOrder(request, auth("33", "ROLE_CUSTOMER"));
@@ -250,7 +257,7 @@ class OrderServiceTest {
                 null,
                 999L,
                 null,
-                List.of(new OrderItemRequest(1L, "Mouse", new BigDecimal("49.99"), 1))
+                List.of(new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000001"), "Mouse", new BigDecimal("49.99"), 1))
         );
 
         ResponseStatusException exception = assertThrows(
@@ -259,6 +266,202 @@ class OrderServiceTest {
 
         assertEquals(403, exception.getStatusCode().value());
         assertEquals("You can only create orders for yourself", exception.getReason());
+    }
+
+    @Test
+    void applyPaymentResultDeductsStockBeforeMarkingOrderPaid() {
+        Order order = new Order();
+        order.setId(30L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setTotalPrice(new BigDecimal("25.00"));
+        order.setOrderItems(List.of(new OrderItem(
+                1L,
+                UUID.fromString("a0000000-0000-4000-8000-000000000001"),
+                "Mouse",
+                new BigDecimal("25.00"),
+                1,
+                order)));
+
+        when(orderRepository.findById(30L)).thenReturn(Optional.of(order));
+
+        orderService.applyPaymentResult(new PaymentCompletedMessage(
+                UUID.randomUUID(),
+                30L,
+                42L,
+                new BigDecimal("25.00"),
+                "SUCCESS"));
+
+        assertEquals(OrderStatus.PAID, order.getStatus());
+        verify(productStockClient).deductStock(order);
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void applyPaymentResultFailureCancelsOrderWithoutDeductingStock() {
+        Order order = new Order();
+        order.setId(31L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setTotalPrice(new BigDecimal("25.00"));
+
+        when(orderRepository.findById(31L)).thenReturn(Optional.of(order));
+
+        orderService.applyPaymentResult(new PaymentCompletedMessage(
+                UUID.randomUUID(),
+                31L,
+                42L,
+                new BigDecimal("25.00"),
+                "FAILED"));
+
+        assertEquals(OrderStatus.CANCELLED, order.getStatus());
+        verify(productStockClient, never()).deductStock(any(Order.class));
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void applyPaymentResultIgnoresDuplicateCompletionForNonPendingOrder() {
+        Order order = new Order();
+        order.setId(32L);
+        order.setStatus(OrderStatus.PAID);
+        order.setTotalPrice(new BigDecimal("25.00"));
+
+        when(orderRepository.findById(32L)).thenReturn(Optional.of(order));
+
+        orderService.applyPaymentResult(new PaymentCompletedMessage(
+                UUID.randomUUID(),
+                32L,
+                42L,
+                new BigDecimal("25.00"),
+                "SUCCESS"));
+
+        verify(productStockClient, never()).deductStock(any(Order.class));
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
+    void applyPaymentResultDoesNotMarkOrderPaidWhenStockUpdateFails() {
+        Order order = new Order();
+        order.setId(33L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setTotalPrice(new BigDecimal("25.00"));
+        order.setOrderItems(List.of(new OrderItem(
+                1L,
+                UUID.fromString("a0000000-0000-4000-8000-000000000001"),
+                "Mouse",
+                new BigDecimal("25.00"),
+                1,
+                order)));
+
+        when(orderRepository.findById(33L)).thenReturn(Optional.of(order));
+        doThrow(new ResponseStatusException(org.springframework.http.HttpStatus.BAD_GATEWAY, "Failed to update product stock"))
+                .when(productStockClient).deductStock(order);
+
+        assertThrows(ResponseStatusException.class, () -> orderService.applyPaymentResult(new PaymentCompletedMessage(
+                UUID.randomUUID(),
+                33L,
+                42L,
+                new BigDecimal("25.00"),
+                "SUCCESS")));
+
+        assertEquals(OrderStatus.PENDING, order.getStatus());
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
+    void addItemAppendsLineAndRecalculatesTotal() {
+        Order order = new Order();
+        order.setId(40L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderItems(new java.util.ArrayList<>(List.of(new OrderItem(
+                1L,
+                UUID.fromString("a0000000-0000-4000-8000-000000000001"),
+                "Mouse",
+                new BigDecimal("10.00"),
+                2,
+                order))));
+        order.setTotalPrice(new BigDecimal("20.00"));
+
+        when(orderRepository.findById(40L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(order)).thenReturn(order);
+
+        Order updated = orderService.addItem(
+                40L,
+                new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000002"), "Cable", new BigDecimal("5.00"), 3),
+                CUSTOMER_AUTH);
+
+        assertEquals(2, updated.getOrderItems().size());
+        assertEquals(new BigDecimal("35.00"), updated.getTotalPrice());
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void addItemRejectsNonPendingOrders() {
+        Order order = new Order();
+        order.setId(41L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PAID);
+        order.setOrderItems(new java.util.ArrayList<>());
+
+        when(orderRepository.findById(41L)).thenReturn(Optional.of(order));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> orderService.addItem(
+                41L,
+                new OrderItemRequest(UUID.fromString("a0000000-0000-4000-8000-000000000002"), "Cable", new BigDecimal("5.00"), 1),
+                CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("Only pending orders can be modified", exception.getReason());
+    }
+
+    @Test
+    void removeItemDeletesLineAndRecalculatesTotal() {
+        Order order = new Order();
+        order.setId(42L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PENDING);
+        OrderItem first = new OrderItem(
+                1L,
+                UUID.fromString("a0000000-0000-4000-8000-000000000001"),
+                "Mouse",
+                new BigDecimal("10.00"),
+                2,
+                order);
+        OrderItem second = new OrderItem(
+                2L,
+                UUID.fromString("a0000000-0000-4000-8000-000000000002"),
+                "Cable",
+                new BigDecimal("5.00"),
+                3,
+                order);
+        order.setOrderItems(new java.util.ArrayList<>(List.of(first, second)));
+        order.setTotalPrice(new BigDecimal("35.00"));
+
+        when(orderRepository.findById(42L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(order)).thenReturn(order);
+
+        Order updated = orderService.removeItem(42L, 2L, CUSTOMER_AUTH);
+
+        assertEquals(1, updated.getOrderItems().size());
+        assertEquals(1L, updated.getOrderItems().get(0).getId());
+        assertEquals(new BigDecimal("20.00"), updated.getTotalPrice());
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void removeItemRejectsUnknownItem() {
+        Order order = new Order();
+        order.setId(43L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderItems(new java.util.ArrayList<>());
+
+        when(orderRepository.findById(43L)).thenReturn(Optional.of(order));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> orderService.removeItem(43L, 99L, CUSTOMER_AUTH));
+
+        assertEquals(404, exception.getStatusCode().value());
+        assertEquals("Order item not found", exception.getReason());
     }
 
     @Test
