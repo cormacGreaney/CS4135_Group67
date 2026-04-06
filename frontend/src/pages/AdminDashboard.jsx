@@ -7,13 +7,13 @@ function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState(null);
   const [orderId, setOrderId] = useState("");
   const [orderStatus, setOrderStatus] = useState("PENDING");
   const [orderDetails, setOrderDetails] = useState(null);
   const [orders, setOrders] = useState([]);
-  const [orderSearch, setOrderSearch] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [activeTab, setActiveTab] = useState("products");
   const [productSort, setProductSort] = useState("name-asc");
@@ -27,7 +27,6 @@ function AdminDashboard() {
         } else {
           setUser(u);
           loadProducts();
-          loadOrders();
         }
       })
       .catch(() => {
@@ -38,6 +37,7 @@ function AdminDashboard() {
   async function loadProducts() {
     setLoading(true);
     setError("");
+    setMessage("");
 
     try {
       const data = await apiFetch("/api/products");
@@ -49,15 +49,29 @@ function AdminDashboard() {
     }
   }
 
-  async function loadOrders(query = "") {
+  async function loadOrderById(id) {
+    if (!id.trim()) {
+      setError("Order ID is required.");
+      setOrders([]);
+      setOrderDetails(null);
+      setSelectedOrder(null);
+      return;
+    }
+
     setLoading(true);
     setError("");
+    setMessage("");
+
     try {
-      const url = query ? `/api/orders?status=${encodeURIComponent(query)}` : "/api/orders";
-      const data = await apiFetch(url);
-      setOrders(data || []);
+      const data = await apiFetch(`/api/order/${encodeURIComponent(id.trim())}`);
+      setOrders([data]);
+      setOrderDetails(data);
+      selectOrder(data);
     } catch (err) {
-      setError(err.message || "Failed to load orders");
+      setError(err.message || "Failed to load order");
+      setOrders([]);
+      setOrderDetails(null);
+      setSelectedOrder(null);
     } finally {
       setLoading(false);
     }
@@ -76,11 +90,13 @@ function AdminDashboard() {
     setForm({ name: "", description: "", price: "", stock: "", category: "" });
     setEditingProduct(null);
     setError("");
+    setMessage("");
   }
 
   function handleInputChange(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (error) setError("");
+    if (message) setMessage("");
   }
 
   function populateForm(product) {
@@ -93,10 +109,12 @@ function AdminDashboard() {
       category: product.category || ""
     });
     setError("");
+    setMessage("");
   }
 
   function selectOrder(order) {
     setSelectedOrder(order);
+    setOrderDetails(order);
     setOrderId(order.id.toString());
     setOrderStatus(order.status);
   }
@@ -129,6 +147,7 @@ function AdminDashboard() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setMessage("");
 
     if (!form.name.trim()) {
       setError("Product name is required.");
@@ -172,6 +191,7 @@ function AdminDashboard() {
 
       await loadProducts();
       resetForm();
+      setMessage(editingProduct ? "Product updated successfully." : "Product created successfully.");
     } catch (err) {
       setError(err.message || "Unable to save product.");
     } finally {
@@ -186,13 +206,14 @@ function AdminDashboard() {
     }
     setSaving(true);
     setError("");
+    setMessage("");
 
     try {
-      await apiFetch(`/api/orders/${orderId}/status?status=${orderStatus}`, {
+      await apiFetch(`/api/order/${orderId}/status?status=${encodeURIComponent(orderStatus)}`, {
         method: "PUT"
       });
-      setError("Order status updated successfully.");
-      setOrderId("");
+      await loadOrderById(orderId);
+      setMessage("Order status updated successfully.");
     } catch (err) {
       setError(err.message || "Unable to update order status.");
     } finally {
@@ -207,13 +228,14 @@ function AdminDashboard() {
     }
     setSaving(true);
     setError("");
+    setMessage("");
 
     try {
-      await apiFetch(`/api/orders/${orderId}/cancel`, {
-        method: "POST"
+      await apiFetch(`/api/order/${orderId}/cancel`, {
+        method: "PUT"
       });
-      setError("Order cancelled successfully.");
-      setOrderId("");
+      await loadOrderById(orderId);
+      setMessage("Order cancelled successfully.");
     } catch (err) {
       setError(err.message || "Unable to cancel order.");
     } finally {
@@ -227,6 +249,7 @@ function AdminDashboard() {
 
     setSaving(true);
     setError("");
+    setMessage("");
 
     try {
       await apiFetch(`/api/products/${id}`, {
@@ -234,6 +257,7 @@ function AdminDashboard() {
       });
       await loadProducts();
       if (editingProduct?.id === id) resetForm();
+      setMessage("Product deleted successfully.");
     } catch (err) {
       setError(err.message || "Unable to delete product.");
     } finally {
@@ -256,6 +280,12 @@ function AdminDashboard() {
       {error && (
         <p style={{ color: theme.errorText, backgroundColor: theme.errorBackground, padding: "15px", borderRadius: "8px", marginBottom: "20px", textAlign: "center" }}>
           {error}
+        </p>
+      )}
+
+      {message && (
+        <p style={{ color: theme.success, backgroundColor: theme.backgroundWhite, padding: "15px", borderRadius: "8px", marginBottom: "20px", textAlign: "center", border: `1px solid ${theme.border}` }}>
+          {message}
         </p>
       )}
 
@@ -400,7 +430,7 @@ function AdminDashboard() {
           </section>
 
           <section style={{ backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}` }}>
-            <h3 style={{ color: theme.textPrimary, marginBottom: "15px" }}>Product List</h3>
+            <h3 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, margin: "0 0 18px 0", fontSize: "20px", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "10px" }}>Product List</h3>
             <div style={{ marginBottom: "20px" }}>
               <select
                 value={productSort}
@@ -463,16 +493,27 @@ function AdminDashboard() {
       {activeTab === "orders" && (
         <>
           <section style={{ marginBottom: "20px", backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}` }}>
-            <h3 style={{ color: theme.textPrimary, marginBottom: "15px" }}>Order Management</h3>
+            <h3 style={{ color: theme.textPrimary, marginBottom: "15px" }}>Order Lookup and Management</h3>
             <div style={{ maxWidth: "600px", boxSizing: "border-box" }}>
               <label style={{ color: theme.textPrimary, fontWeight: "500" }}>Order ID:</label>
               <input
                 type="text"
                 value={orderId}
-                onChange={e => setOrderId(e.target.value)}
+                onChange={e => {
+                  setOrderId(e.target.value);
+                  if (error) setError("");
+                  if (message) setMessage("");
+                }}
                 disabled={saving}
                 style={{ width: "100%", padding: "12px", marginTop: "5px", border: `1px solid ${theme.border}`, borderRadius: "4px", backgroundColor: theme.backgroundWhite, boxSizing: "border-box" }}
               />
+              <button
+                onClick={() => loadOrderById(orderId)}
+                disabled={saving || loading}
+                style={{ padding: "10px 16px", backgroundColor: theme.buttonPrimary, color: theme.buttonPrimaryText, border: "none", borderRadius: "4px", cursor: saving || loading ? "not-allowed" : "pointer", marginTop: "10px" }}
+              >
+                {loading ? "Loading..." : "Find Order"}
+              </button>
               <label style={{ color: theme.textPrimary, fontWeight: "500", marginTop: "10px", display: "block" }}>Status:</label>
               <select
                 value={orderStatus}
@@ -503,24 +544,10 @@ function AdminDashboard() {
           </section>
 
           <section style={{ backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}` }}>
-            <h3 style={{ color: theme.textPrimary, marginBottom: "15px" }}>Order List</h3>
-            <div style={{ marginBottom: "20px" }}>
-              <select
-                value={orderSearch}
-                onChange={e => {
-                  setOrderSearch(e.target.value);
-                  loadOrders(e.target.value);
-                }}
-                style={{ padding: "8px", marginRight: "10px", border: `1px solid ${theme.border}`, borderRadius: "4px", backgroundColor: theme.backgroundWhite }}
-              >
-                <option value="">All Orders</option>
-                <option value="PENDING">Pending</option>
-                <option value="PAID">Paid</option>
-                <option value="SHIPPED">Shipped</option>
-                <option value="DELIVERED">Delivered</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            </div>
+            <h3 style={{ color: theme.textPrimary, marginBottom: "15px" }}>Loaded Order</h3>
+            {!orders.length && (
+              <p style={{ color: theme.textMuted, marginTop: 0 }}>Search by order ID to view and manage an order.</p>
+            )}
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
@@ -535,11 +562,11 @@ function AdminDashboard() {
                 </thead>
                 <tbody>
                   {orders.map(order => (
-                    <tr key={order.id} style={{ cursor: "pointer", ":hover": { backgroundColor: theme.backgroundWarm } }} onClick={() => selectOrder(order)}>
+                    <tr key={order.id} style={{ cursor: "pointer" }} onClick={() => selectOrder(order)}>
                       <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.id}</td>
                       <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.userId}</td>
                       <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.status}</td>
-                      <td style={{ padding: "10px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>${order.totalPrice?.toFixed(2)}</td>
+                      <td style={{ padding: "10px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>€{order.totalPrice?.toFixed(2)}</td>
                       <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{new Date(order.orderedDate).toLocaleDateString()}</td>
                       <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}` }}>
                         <button
@@ -554,6 +581,15 @@ function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+
+            {orderDetails && (
+              <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: `1px solid ${theme.border}` }}>
+                <h4 style={{ color: theme.textPrimary, marginTop: 0 }}>Order Details</h4>
+                <p style={{ color: theme.textPrimary, margin: "0 0 8px 0" }}><strong>Order Number:</strong> {orderDetails.orderNumber}</p>
+                <p style={{ color: theme.textPrimary, margin: "0 0 8px 0" }}><strong>Status:</strong> {orderDetails.status}</p>
+                <p style={{ color: theme.textPrimary, margin: 0 }}><strong>Total Price:</strong> €{orderDetails.totalPrice?.toFixed(2)}</p>
+              </div>
+            )}
           </section>
         </>
       )}
