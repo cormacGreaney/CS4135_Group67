@@ -296,7 +296,6 @@ function AdminDashboard() {
         </p>
       )}
 
-      {/* Stats Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px", marginBottom: "30px" }}>
         <div style={{ backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}`, textAlign: "center" }}>
           <h3 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, margin: "0 0 10px 0", fontSize: "18px" }}>Total Products</h3>
@@ -312,11 +311,10 @@ function AdminDashboard() {
         </div>
         <div style={{ backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}`, textAlign: "center" }}>
           <h3 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, margin: "0 0 10px 0", fontSize: "18px" }}>Total Revenue</h3>
-          <p style={{ color: theme.success, fontSize: "24px", fontWeight: "bold", margin: 0 }}>${totalRevenue.toFixed(2)}</p>
+          <p style={{ color: theme.success, fontSize: "24px", fontWeight: "bold", margin: 0 }}>€{totalRevenue.toFixed(2)}</p>
         </div>
       </div>
 
-      {/* Tab Navigation */}
       <div style={{ display: "flex", justifyContent: "center", marginBottom: "30px" }}>
         <button
           onClick={() => setActiveTab("products")}
@@ -349,7 +347,6 @@ function AdminDashboard() {
         </button>
       </div>
 
-      {}
       {activeTab === "products" && (
         <>
           <section style={{ marginBottom: "20px", backgroundColor: theme.backgroundWhite, padding: "30px", borderRadius: "12px", border: `1px solid ${theme.border}`, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", maxWidth: "500px", marginLeft: "auto", marginRight: "auto" }}>
@@ -498,107 +495,135 @@ function AdminDashboard() {
       )}
 
       {activeTab === "orders" && (
-        <>
-          <section style={{ marginBottom: "20px", backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}` }}>
-            <h3 style={{ color: theme.textPrimary, marginBottom: "15px" }}>Order Lookup and Management</h3>
-            <div style={{ maxWidth: "600px", boxSizing: "border-box" }}>
-              <label style={{ color: theme.textPrimary, fontWeight: "500" }}>Order ID:</label>
-              <input
-                type="text"
-                value={orderId}
-                onChange={e => {
-                  setOrderId(e.target.value);
-                  if (error) setError("");
-                  if (message) setMessage("");
-                }}
-                disabled={saving}
-                style={{ width: "100%", padding: "12px", marginTop: "5px", border: `1px solid ${theme.border}`, borderRadius: "4px", backgroundColor: theme.backgroundWhite, boxSizing: "border-box" }}
-              />
-              <button
-                onClick={() => loadOrderById(orderId)}
-                disabled={saving || loading}
-                style={{ padding: "10px 16px", backgroundColor: theme.buttonPrimary, color: theme.buttonPrimaryText, border: "none", borderRadius: "4px", cursor: saving || loading ? "not-allowed" : "pointer", marginTop: "10px" }}
-              >
-                {loading ? "Loading..." : "Find Order"}
-              </button>
-              <label style={{ color: theme.textPrimary, fontWeight: "500", marginTop: "10px", display: "block" }}>Status:</label>
-              <select
-                value={orderStatus}
-                onChange={e => setOrderStatus(e.target.value)}
-                disabled={saving}
-                style={{ width: "100%", padding: "12px", marginTop: "5px", border: `1px solid ${theme.border}`, borderRadius: "4px", backgroundColor: theme.backgroundWhite, boxSizing: "border-box"  }}
-              >
-                <option value="PENDING">PENDING</option>
-                <option value="SHIPPED">SHIPPED</option>
-                <option value="DELIVERED">DELIVERED</option>
-                <option value="CANCELLED">CANCELLED</option>
-              </select>
-              <button
-                onClick={updateOrderStatus}
-                disabled={saving}
-                style={{ padding: "10px 16px", backgroundColor: theme.buttonPrimary, color: theme.buttonPrimaryText, border: "none", borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer", marginTop: "10px" }}
-              >
-                Update Status
-              </button>
-              <button
-                onClick={cancelOrder}
-                disabled={saving}
-                style={{ padding: "10px 16px", backgroundColor: theme.errorText, color: theme.buttonPrimaryText, border: "none", borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer", marginTop: "10px", marginLeft: "10px" }}
-              >
-                Cancel Order
-              </button>
-            </div>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 340px) 1fr", gap: "20px", alignItems: "start" }}>
+          <section style={{ backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}` }}>
+            <h3 style={{ color: theme.textPrimary, margin: "0 0 14px 0", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "10px" }}>Order Lookup</h3>
+            <label style={{ color: theme.textPrimary, fontWeight: "500" }}>Order ID:</label>
+            <input
+              type="text"
+              value={orderId}
+              onChange={e => {
+                setOrderId(e.target.value);
+                if (error) setError("");
+                if (message) setMessage("");
+              }}
+              disabled={saving}
+              style={{ width: "100%", padding: "12px", marginTop: "5px", border: `1px solid ${theme.border}`, borderRadius: "4px", backgroundColor: theme.backgroundWhite, boxSizing: "border-box" }}
+            />
+            <button
+              onClick={() => loadOrderById(orderId)}
+              disabled={saving || loading}
+              style={{ width: "100%", padding: "10px 16px", backgroundColor: theme.buttonPrimary, color: theme.buttonPrimaryText, border: "none", borderRadius: "4px", cursor: saving || loading ? "not-allowed" : "pointer", marginTop: "10px" }}
+            >
+              {loading ? "Loading..." : "Find Order"}
+            </button>
+            <p style={{ color: theme.textMuted, margin: "12px 0 0 0", fontSize: "13px" }}>
+              Search an order by ID, then manage it on the right panel.
+            </p>
           </section>
 
           <section style={{ backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}` }}>
-            <h3 style={{ color: theme.textPrimary, marginBottom: "15px" }}>Loaded Order</h3>
-            {!orders.length && (
+            <h3 style={{ color: theme.textPrimary, margin: "0 0 16px 0", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "10px" }}>Order Management</h3>
+
+            {!selectedOrder && (
               <p style={{ color: theme.textMuted, marginTop: 0 }}>Search by order ID to view and manage an order.</p>
             )}
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Order ID</th>
-                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>User ID</th>
-                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Status</th>
-                    <th style={{ textAlign: "right", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Total Price</th>
-                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Ordered Date</th>
-                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map(order => (
-                    <tr key={order.id} style={{ cursor: "pointer" }} onClick={() => selectOrder(order)}>
-                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.id}</td>
-                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.userId}</td>
-                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.status}</td>
-                      <td style={{ padding: "10px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>€{order.totalPrice?.toFixed(2)}</td>
-                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{new Date(order.orderedDate).toLocaleDateString()}</td>
-                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}` }}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); selectOrder(order); }}
-                          style={{ padding: "6px 10px", borderRadius: "4px", border: `1px solid ${theme.buttonPrimary}`, backgroundColor: theme.backgroundWhite, color: theme.buttonPrimary, cursor: "pointer" }}
-                        >
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
 
-            {orderDetails && (
-              <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: `1px solid ${theme.border}` }}>
-                <h4 style={{ color: theme.textPrimary, marginTop: 0 }}>Order Details</h4>
-                <p style={{ color: theme.textPrimary, margin: "0 0 8px 0" }}><strong>Order Number:</strong> {orderDetails.orderNumber}</p>
-                <p style={{ color: theme.textPrimary, margin: "0 0 8px 0" }}><strong>Status:</strong> {orderDetails.status}</p>
-                <p style={{ color: theme.textPrimary, margin: 0 }}><strong>Total Price:</strong> €{orderDetails.totalPrice?.toFixed(2)}</p>
-              </div>
+            {selectedOrder && (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "10px", marginBottom: "16px" }}>
+                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: "6px", padding: "10px" }}>
+                    <p style={{ color: theme.textMuted, margin: "0 0 4px 0", fontSize: "12px" }}>Order ID</p>
+                    <p style={{ color: theme.textPrimary, margin: 0, fontWeight: "600" }}>{selectedOrder.id}</p>
+                  </div>
+                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: "6px", padding: "10px" }}>
+                    <p style={{ color: theme.textMuted, margin: "0 0 4px 0", fontSize: "12px" }}>User ID</p>
+                    <p style={{ color: theme.textPrimary, margin: 0, fontWeight: "600" }}>{selectedOrder.userId}</p>
+                  </div>
+                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: "6px", padding: "10px" }}>
+                    <p style={{ color: theme.textMuted, margin: "0 0 4px 0", fontSize: "12px" }}>Total</p>
+                    <p style={{ color: theme.textPrimary, margin: 0, fontWeight: "600" }}>€{selectedOrder.totalPrice?.toFixed(2)}</p>
+                  </div>
+                  <div style={{ border: `1px solid ${theme.border}`, borderRadius: "6px", padding: "10px" }}>
+                    <p style={{ color: theme.textMuted, margin: "0 0 4px 0", fontSize: "12px" }}>Ordered Date</p>
+                    <p style={{ color: theme.textPrimary, margin: 0, fontWeight: "600" }}>{new Date(selectedOrder.orderedDate).toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: "14px" }}>
+                  <label style={{ color: theme.textPrimary, fontWeight: "500", display: "block", marginBottom: "6px" }}>Status:</label>
+                  <select
+                    value={orderStatus}
+                    onChange={e => setOrderStatus(e.target.value)}
+                    disabled={saving}
+                    style={{ width: "100%", padding: "12px", border: `1px solid ${theme.border}`, borderRadius: "4px", backgroundColor: theme.backgroundWhite, boxSizing: "border-box" }}
+                  >
+                    <option value="PENDING">PENDING</option>
+                    <option value="PAID">PAID</option>
+                    <option value="SHIPPED">SHIPPED</option>
+                    <option value="DELIVERED">DELIVERED</option>
+                    <option value="CANCELLED">CANCELLED</option>
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  <button
+                    onClick={updateOrderStatus}
+                    disabled={saving}
+                    style={{ padding: "10px 16px", backgroundColor: theme.buttonPrimary, color: theme.buttonPrimaryText, border: "none", borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer" }}
+                  >
+                    Update Status
+                  </button>
+                  <button
+                    onClick={cancelOrder}
+                    disabled={saving}
+                    style={{ padding: "10px 16px", backgroundColor: theme.errorText, color: theme.buttonPrimaryText, border: "none", borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer" }}
+                  >
+                    Cancel Order
+                  </button>
+                </div>
+              </>
             )}
+
+            <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: `1px solid ${theme.border}` }}>
+              <h4 style={{ color: theme.textPrimary, margin: "0 0 12px 0", borderBottom: `1px solid ${theme.border}`, paddingBottom: "8px" }}>Loaded Order List</h4>
+              {!orders.length && (
+                <p style={{ color: theme.textMuted, marginTop: 0 }}>No orders loaded yet.</p>
+              )}
+              {!!orders.length && (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Order ID</th>
+                        <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Status</th>
+                        <th style={{ textAlign: "right", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Total</th>
+                        <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.map(order => (
+                        <tr key={order.id}>
+                          <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.id}</td>
+                          <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.status}</td>
+                          <td style={{ padding: "10px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>€{order.totalPrice?.toFixed(2)}</td>
+                          <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}` }}>
+                            <button
+                              onClick={() => selectOrder(order)}
+                              style={{ padding: "6px 10px", borderRadius: "4px", border: `1px solid ${theme.buttonPrimary}`, backgroundColor: theme.backgroundWhite, color: theme.buttonPrimary, cursor: "pointer" }}
+                            >
+                              Select
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </section>
-        </>
+        </div>
       )}
 
     </div>
