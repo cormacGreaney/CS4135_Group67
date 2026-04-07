@@ -17,9 +17,12 @@ function AdminDashboard() {
   const [orderStatus, setOrderStatus] = useState("PENDING");
   const [orderDetails, setOrderDetails] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]);
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [activeTab, setActiveTab] = useState("products");
   const [productSort, setProductSort] = useState("name-asc");
+  const [allOrdersFilter, setAllOrdersFilter] = useState("ALL");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,6 +33,8 @@ function AdminDashboard() {
         } else {
           setUser(u);
           loadProducts();
+          loadAllOrders();
+          loadPendingOrdersCount();
         }
       })
       .catch(() => {
@@ -77,6 +82,30 @@ function AdminDashboard() {
       setSelectedOrder(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAllOrders() {
+    setError("");
+
+    try {
+      const data = await apiFetch("/api/order/allOrders");
+      const orderList = Array.isArray(data) ? data : [];
+      setAllOrders(orderList);
+      setPendingOrdersCount(orderList.filter(o => String(o.status || "").toUpperCase() === "PENDING").length);
+    } catch (err) {
+      setError(err.message || "Failed to load all orders");
+      setAllOrders([]);
+    }
+  }
+
+  async function loadPendingOrdersCount() {
+    try {
+      const data = await apiFetch("/api/order/orderBy/PENDING");
+      const pendingList = Array.isArray(data) ? data : [];
+      setPendingOrdersCount(pendingList.length);
+    } catch {
+        setPendingOrdersCount(0);
     }
   }
 
@@ -256,6 +285,8 @@ function AdminDashboard() {
         method: "PUT"
       });
       await loadOrderById(orderId);
+      await loadAllOrders();
+      await loadPendingOrdersCount();
       setMessage("Order status updated successfully.");
     } catch (err) {
       setError(err.message || "Unable to update order status.");
@@ -278,6 +309,8 @@ function AdminDashboard() {
         method: "PUT"
       });
       await loadOrderById(orderId);
+      await loadAllOrders();
+      await loadPendingOrdersCount();
       setMessage("Order cancelled successfully.");
     } catch (err) {
       setError(err.message || "Unable to cancel order.");
@@ -311,9 +344,13 @@ function AdminDashboard() {
   if (!user) return <p style={{ color: theme.textMuted, textAlign: "center", padding: "50px" }}>Loading admin dashboard...</p>;
 
   const totalProducts = products.length;
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter(o => o.status === "PENDING").length;
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+  const totalOrders = allOrders.length;
+  const pendingOrders = pendingOrdersCount;
+  const totalRevenue = allOrders.filter(o => String(o.status || "").toUpperCase() !== "CANCELLED").reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+
+  const filteredAllOrders = allOrdersFilter === "ALL"
+    ? allOrders
+    : allOrders.filter(order => String(order.status || "").toUpperCase() === allOrdersFilter);
 
   return (
     <div style={{ backgroundColor: theme.backgroundWarm, minHeight: "100vh", padding: "20px" }}>
@@ -574,6 +611,7 @@ function AdminDashboard() {
       )}
 
       {activeTab === "orders" && (
+        <>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 340px) 1fr", gap: "20px", alignItems: "start" }}>
           <section style={{ backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}` }}>
             <h3 style={{ color: theme.textPrimary, margin: "0 0 14px 0", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "10px" }}>Order Lookup</h3>
@@ -677,7 +715,6 @@ function AdminDashboard() {
                         <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Order ID</th>
                         <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Status</th>
                         <th style={{ textAlign: "right", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Total</th>
-                        <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -686,14 +723,6 @@ function AdminDashboard() {
                           <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.id}</td>
                           <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.status}</td>
                           <td style={{ padding: "10px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>€{order.totalPrice?.toFixed(2)}</td>
-                          <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}` }}>
-                            <button
-                              onClick={() => selectOrder(order)}
-                              style={{ padding: "6px 10px", borderRadius: "4px", border: `1px solid ${theme.buttonPrimary}`, backgroundColor: theme.backgroundWhite, color: theme.buttonPrimary, cursor: "pointer" }}
-                            >
-                              Select
-                            </button>
-                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -703,6 +732,75 @@ function AdminDashboard() {
             </div>
           </section>
         </div>
+
+        <section style={{ marginTop: "20px", backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "10px", gap: "10px", flexWrap: "wrap" }}>
+            <h3 style={{ color: theme.textPrimary, margin: 0 }}>All Orders</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <label style={{ color: theme.textPrimary, fontWeight: "500", fontSize: "14px" }}>Filter:</label>
+              <select
+                value={allOrdersFilter}
+                onChange={e => setAllOrdersFilter(e.target.value)}
+                style={{ padding: "8px", border: `1px solid ${theme.border}`, borderRadius: "4px", backgroundColor: theme.backgroundWhite }}
+              >
+                <option value="ALL">All</option>
+                <option value="PAID">Paid</option>
+                <option value="CANCELLED">Cancelled</option>
+                <option value="DELIVERED">Delivered</option>
+                <option value="PENDING">Pending</option>
+                <option value="SHIPPED">Shipped</option>
+              </select>
+              <button
+                onClick={loadAllOrders}
+                disabled={loading || saving}
+                style={{ padding: "8px 12px", backgroundColor: theme.buttonPrimary, color: theme.buttonPrimaryText, border: "none", borderRadius: "4px", cursor: loading || saving ? "not-allowed" : "pointer" }}
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          {!filteredAllOrders.length && (
+            <p style={{ color: theme.textMuted, marginTop: 0 }}>No orders found.</p>
+          )}
+
+          {!!filteredAllOrders.length && (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Order ID</th>
+                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>User ID</th>
+                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Status</th>
+                    <th style={{ textAlign: "right", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Total</th>
+                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Ordered Date</th>
+                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAllOrders.map(order => (
+                    <tr key={order.id}>
+                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.id}</td>
+                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.userId}</td>
+                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.status}</td>
+                      <td style={{ padding: "10px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>€{order.totalPrice?.toFixed(2)}</td>
+                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.orderedDate ? new Date(order.orderedDate).toLocaleDateString() : "-"}</td>
+                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}` }}>
+                        <button
+                          onClick={() => selectOrder(order)}
+                          style={{ padding: "6px 10px", borderRadius: "4px", border: `1px solid ${theme.buttonPrimary}`, backgroundColor: theme.backgroundWhite, color: theme.buttonPrimary, cursor: "pointer" }}
+                        >
+                          Select
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+        </>
       )}
 
     </div>
