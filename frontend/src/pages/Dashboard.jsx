@@ -101,8 +101,11 @@ function Dashboard() {
     <div style={{ backgroundColor: theme.backgroundWarm, minHeight: "100vh", padding: "30px 20px" }}>
       <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-          <h2 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, fontSize: "30px", margin: 0, textAlign: "center", flex: 1 }}>Customer Dashboard</h2>
+          <div style={{ flex: 1 }} />
+          <h2 style={{ margin: 0 }}>Customer Dashboard</h2>
+          <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
             <LogoutButton />
+          </div>
         </div>
 <p style={{ color: theme.textMuted, textAlign: "center", marginBottom: "36px", fontFamily: "'Arial', sans-serif" }}>Welcome back, {user.email}</p>
         {error && (

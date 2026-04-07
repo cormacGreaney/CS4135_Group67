@@ -275,9 +275,12 @@ function AdminDashboard() {
 
   return (
     <div style={{ backgroundColor: theme.backgroundWarm, minHeight: "100vh", padding: "20px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-        <h2 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, fontSize: "28px", margin: 0, flex: 1, textAlign: "center" }}>Admin Dashboard</h2>
-        <LogoutButton />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+        <div style={{ flex: 1 }} />
+        <h2 style={{ margin: 0 }}>Admin Dashboard</h2>
+        <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
+          <LogoutButton />
+        </div>
       </div>
       <p style={{ color: theme.textMuted, textAlign: "center", marginBottom: "30px" }}>Welcome, {user.email}</p>
 
