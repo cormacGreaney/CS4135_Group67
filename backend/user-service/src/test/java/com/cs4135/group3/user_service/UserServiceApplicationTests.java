@@ -1,5 +1,6 @@
 package com.cs4135.group3.user_service;
 
+import com.cs4135.group3.user_service.config.JwtProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class UserServiceApplicationTests {
 
 	@Autowired
 	ObjectMapper objectMapper;
+
+	@Autowired
+	JwtProperties jwtProperties;
 
 	@Test
 	void contextLoads() {
@@ -97,6 +101,46 @@ class UserServiceApplicationTests {
 		mockMvc.perform(get("/actuator/health").accept(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value("UP"));
+	}
+
+	@Test
+	void meWithMalformedBearerTokenReturnsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer not-a-valid-jwt")
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meWithWrongSignatureTokenReturnsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer " + JwtTestTokens.signedWithWrongSecret())
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meWithExpiredTokenReturnsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer " + JwtTestTokens.expired(jwtProperties))
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meWithMissingRoleClaimReturnsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer " + JwtTestTokens.missingRoleClaim(jwtProperties))
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meWithEmptyBearerTokenReturnsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer ")
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
 	}
 
 }
