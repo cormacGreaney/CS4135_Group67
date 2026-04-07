@@ -102,7 +102,7 @@ function Login({ initialMode = "login" }) {
   }
 
   return (
-    <div style={{ backgroundColor: theme.backgroundWarm, minHeight: "100vh", padding: "30px 20px" }}>
+    <div style={{ backgroundColor: theme.backgroundWarm, minHeight: "calc(100vh - 64px)", boxSizing: "border-box", padding: "30px 20px" }}>
       <div style={{ maxWidth: "480px", margin: "0 auto", backgroundColor: theme.backgroundWhite, border: `1px solid ${theme.border}`, borderRadius: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", padding: "28px" }}>
         <h2 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, margin: "0 0 16px 0", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "10px" }}>
           {mode === "register" ? "Create Account" : "Login"}

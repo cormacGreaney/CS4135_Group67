@@ -26,6 +26,7 @@ function Navbar() {
     <nav style={{
       background: theme.backgroundWhite,
       borderBottom: `1px solid ${theme.border}`,
+      boxSizing: "border-box",
       padding: "0 40px",
       display: "flex",
       justifyContent: "space-between",
