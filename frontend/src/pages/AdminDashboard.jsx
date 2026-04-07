@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../api/api.js";
 import { useNavigate } from "react-router-dom";
 import theme from "../styles/theme";
+import LogoutButton from "../components/LogoutButton.jsx";
 
 function AdminDashboard() {
   const [products, setProducts] = useState([]);
@@ -274,7 +275,13 @@ function AdminDashboard() {
 
   return (
     <div style={{ backgroundColor: theme.backgroundWarm, minHeight: "100vh", padding: "20px" }}>
-      <h2 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, fontSize: "28px", marginBottom: "10px", textAlign: "center" }}>Admin Dashboard</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+        <div style={{ flex: 1 }} />
+        <h2 style={{ margin: 0 }}>Admin Dashboard</h2>
+        <div style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
+          <LogoutButton />
+        </div>
+      </div>
       <p style={{ color: theme.textMuted, textAlign: "center", marginBottom: "30px" }}>Welcome, {user.email}</p>
 
       {error && (

@@ -7,6 +7,11 @@ function Home() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [ageVerified, setAgeVerified] = useState(
+    () => sessionStorage.getItem("ageVerified") === "true"
+  );
 
   useEffect(() => {
     apiFetch("/api/products")
@@ -20,6 +25,15 @@ function Home() {
       });
   }, []);
 
+  function handleAgeConfirm() {
+    sessionStorage.setItem("ageVerified", "true");
+    setAgeVerified(true);
+  }
+
+  function handleAgeDeny() {
+    window.location.href = "https://www.google.com";
+  }
+
   const aliasMap = {
     "holy water": "guinness",
     "the black stuff": "guinness",
@@ -27,12 +41,100 @@ function Home() {
 
   const searchTerm = aliasMap[search.toLowerCase()] ?? search.toLowerCase();
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm)
-  );
+  const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
+
+  const filtered = products.filter(p => {
+    const matchesName = p.name.toLowerCase().includes(searchTerm);
+    const matchesCategory = category === "" || p.category === category;
+    const matchesPrice = maxPrice === "" || Number(p.price) <= Number(maxPrice);
+    return matchesName && matchesCategory && matchesPrice;
+  });
 
   return (
     <div>
+      {/* Age verification overlay */}
+      {!ageVerified && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.7)",
+          zIndex: 1000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
+          <div style={{
+            background: theme.backgroundWhite,
+            padding: "48px 40px",
+            maxWidth: "400px",
+            width: "90%",
+            textAlign: "center",
+            border: `1px solid ${theme.border}`,
+          }}>
+            <p style={{
+              fontSize: "11px",
+              letterSpacing: "0.15em",
+              textTransform: "uppercase",
+              color: theme.textAccent,
+              marginBottom: "16px",
+            }}>
+              Age Verification
+            </p>
+            <h2 style={{
+              fontFamily: "'Georgia', serif",
+              fontSize: "26px",
+              fontWeight: "400",
+              color: theme.textPrimary,
+              margin: "0 0 16px",
+            }}>
+              Are you over 18?
+            </h2>
+            <p style={{
+              color: theme.textMuted,
+              fontSize: "14px",
+              lineHeight: "1.6",
+              margin: "0 0 32px",
+            }}>
+              You must be 18 or older to enter this site. Please confirm your age.
+            </p>
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+              <button
+                onClick={handleAgeConfirm}
+                style={{
+                  background: theme.buttonPrimary,
+                  color: theme.buttonPrimaryText,
+                  border: "none",
+                  padding: "12px 28px",
+                  fontSize: "11px",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  borderRadius: "2px",
+                }}
+              >
+                Yes, I am 18+
+              </button>
+              <button
+                onClick={handleAgeDeny}
+                style={{
+                  background: "none",
+                  color: theme.textMuted,
+                  border: `1px solid ${theme.border}`,
+                  padding: "12px 28px",
+                  fontSize: "11px",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  borderRadius: "2px",
+                }}
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{
         background: theme.backgroundWarm,
         padding: "64px 40px",
@@ -68,23 +170,61 @@ function Home() {
           A carefully selected collection of premium beverages, delivered to your door.
         </p>
 
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{
-            width: "100%",
-            maxWidth: "360px",
-            padding: "12px 16px",
-            fontSize: "14px",
-            border: `1px solid ${theme.border}`,
-            borderRadius: "2px",
-            background: theme.backgroundWhite,
-            outline: "none",
-            color: theme.textPrimary,
-          }}
-        />
+        <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width: "100%",
+              maxWidth: "240px",
+              padding: "12px 16px",
+              fontSize: "14px",
+              border: `1px solid ${theme.border}`,
+              borderRadius: "2px",
+              background: theme.backgroundWhite,
+              outline: "none",
+              color: theme.textPrimary,
+            }}
+          />
+          <select
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+            style={{
+              padding: "12px 16px",
+              fontSize: "14px",
+              border: `1px solid ${theme.border}`,
+              borderRadius: "2px",
+              background: theme.backgroundWhite,
+              outline: "none",
+              color: category === "" ? theme.textMuted : theme.textPrimary,
+              cursor: "pointer",
+            }}
+          >
+            <option value="">All categories</option>
+            {categories.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <input
+            type="number"
+            placeholder="Max price (€)"
+            value={maxPrice}
+            onChange={e => setMaxPrice(e.target.value)}
+            min="0"
+            style={{
+              width: "140px",
+              padding: "12px 16px",
+              fontSize: "14px",
+              border: `1px solid ${theme.border}`,
+              borderRadius: "2px",
+              background: theme.backgroundWhite,
+              outline: "none",
+              color: theme.textPrimary,
+            }}
+          />
+        </div>
       </div>
 
       <div style={{ padding: "48px 40px" }}>

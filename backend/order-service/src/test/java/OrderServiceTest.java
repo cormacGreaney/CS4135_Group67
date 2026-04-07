@@ -35,6 +35,7 @@ import com.cs4135.group3.order_service.model.Order;
 import com.cs4135.group3.order_service.model.OrderItem;
 import com.cs4135.group3.order_service.model.OrderStatus;
 import com.cs4135.group3.order_service.repository.OrderRepository;
+import com.cs4135.group3.order_service.requests.AddOrderItemRequest;
 import com.cs4135.group3.order_service.requests.OrderItemRequest;
 import com.cs4135.group3.order_service.requests.OrderRequest;
 import com.cs4135.group3.order_service.service.OrderService;
@@ -442,6 +443,146 @@ class OrderServiceTest {
         assertEquals(404, exception.getStatusCode().value());
         assertEquals("Order not found", exception.getReason());
         verify(orderRepository).findById(888L);
+    }
+
+    @Test
+    void addItemAddsLineAndRecalculatesTotal() {
+        Order order = new Order();
+        order.setId(30L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderItems(new java.util.ArrayList<>(List.of(
+                new OrderItem(1L, PRODUCT_ID_1, "Mouse", new BigDecimal("10.00"), 2, order))));
+        order.setTotalPrice(new BigDecimal("20.00"));
+        when(orderRepository.findById(30L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(order)).thenReturn(order);
+
+        Order updated = orderService.addItem(
+                30L,
+                new AddOrderItemRequest(PRODUCT_ID_2, "Keyboard", new BigDecimal("15.00"), 1),
+                CUSTOMER_AUTH);
+
+        assertEquals(2, updated.getOrderItems().size());
+        assertEquals(new BigDecimal("35.00"), updated.getTotalPrice());
+        assertEquals(order, updated.getOrderItems().get(1).getOrder());
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void addItemRejectsNonPendingOrders() {
+        Order order = new Order();
+        order.setId(30L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PAID);
+        order.setOrderItems(new java.util.ArrayList<>());
+        when(orderRepository.findById(30L)).thenReturn(Optional.of(order));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.addItem(
+                        30L,
+                        new AddOrderItemRequest(PRODUCT_ID_2, "Keyboard", new BigDecimal("15.00"), 1),
+                        CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("Only pending orders can be modified", exception.getReason());
+    }
+
+    @Test
+    void removeItemDeletesLineAndRecalculatesTotal() {
+        Order order = new Order();
+        order.setId(31L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PENDING);
+        OrderItem first = new OrderItem(1L, PRODUCT_ID_1, "Mouse", new BigDecimal("10.00"), 2, order);
+        OrderItem second = new OrderItem(2L, PRODUCT_ID_2, "Keyboard", new BigDecimal("15.00"), 1, order);
+        order.setOrderItems(new java.util.ArrayList<>(List.of(first, second)));
+        order.setTotalPrice(new BigDecimal("35.00"));
+        when(orderRepository.findById(31L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(order)).thenReturn(order);
+
+        Order updated = orderService.removeItem(31L, 2L, CUSTOMER_AUTH);
+
+        assertEquals(1, updated.getOrderItems().size());
+        assertEquals(1L, updated.getOrderItems().get(0).getId());
+        assertEquals(new BigDecimal("20.00"), updated.getTotalPrice());
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void increaseItemQuantityUpdatesQuantityAndTotal() {
+        Order order = new Order();
+        order.setId(32L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PENDING);
+        OrderItem item = new OrderItem(1L, PRODUCT_ID_1, "Mouse", new BigDecimal("10.00"), 2, order);
+        order.setOrderItems(new java.util.ArrayList<>(List.of(item)));
+        order.setTotalPrice(new BigDecimal("20.00"));
+        when(orderRepository.findById(32L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(order)).thenReturn(order);
+
+        Order updated = orderService.increaseItemQuantity(32L, 1L, 3, CUSTOMER_AUTH);
+
+        assertEquals(5, updated.getOrderItems().get(0).getQuantity());
+        assertEquals(new BigDecimal("50.00"), updated.getTotalPrice());
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void decreaseItemQuantityUpdatesQuantityAndTotal() {
+        Order order = new Order();
+        order.setId(33L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PENDING);
+        OrderItem item = new OrderItem(1L, PRODUCT_ID_1, "Mouse", new BigDecimal("10.00"), 4, order);
+        order.setOrderItems(new java.util.ArrayList<>(List.of(item)));
+        order.setTotalPrice(new BigDecimal("40.00"));
+        when(orderRepository.findById(33L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(order)).thenReturn(order);
+
+        Order updated = orderService.decreaseItemQuantity(33L, 1L, 2, CUSTOMER_AUTH);
+
+        assertEquals(2, updated.getOrderItems().get(0).getQuantity());
+        assertEquals(new BigDecimal("20.00"), updated.getTotalPrice());
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void decreaseItemQuantityRejectsReducingBelowOne() {
+        Order order = new Order();
+        order.setId(34L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PENDING);
+        OrderItem item = new OrderItem(1L, PRODUCT_ID_1, "Mouse", new BigDecimal("10.00"), 1, order);
+        order.setOrderItems(new java.util.ArrayList<>(List.of(item)));
+        when(orderRepository.findById(34L)).thenReturn(Optional.of(order));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.decreaseItemQuantity(34L, 1L, 1, CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("Quantity cannot be reduced below 1", exception.getReason());
+    }
+
+    @Test
+    void modifyOrderRejectsOtherCustomer() {
+        Order order = new Order();
+        order.setId(35L);
+        order.setUserId(42L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setOrderItems(new java.util.ArrayList<>());
+        when(orderRepository.findById(35L)).thenReturn(Optional.of(order));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.addItem(
+                        35L,
+                        new AddOrderItemRequest(PRODUCT_ID_2, "Keyboard", new BigDecimal("15.00"), 1),
+                        OTHER_CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("You can only modify your own orders", exception.getReason());
     }
 
     @Test

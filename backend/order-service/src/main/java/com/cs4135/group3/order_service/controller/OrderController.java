@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,10 +16,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.cs4135.group3.order_service.model.OrderStatus;
+import com.cs4135.group3.order_service.requests.AddOrderItemRequest;
 import com.cs4135.group3.order_service.requests.OrderRequest;
+import com.cs4135.group3.order_service.requests.OrderItemQuantityUpdateRequest;
 import com.cs4135.group3.order_service.service.OrderService;
 import com.cs4135.group3.order_service.web.dto.OrderResponse;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -62,5 +66,43 @@ public class OrderController
     public OrderResponse cancelOrder(@PathVariable Long orderId, Authentication authentication)
     {
         return OrderResponse.fromEntity(orderService.cancelOrder(orderId, authentication));
+    }
+
+    @PostMapping("/{orderId}/items")
+    public OrderResponse addItem(
+            @PathVariable Long orderId,
+            @Valid @RequestBody AddOrderItemRequest request,
+            Authentication authentication)
+    {
+        return OrderResponse.fromEntity(orderService.addItem(orderId, request, authentication));
+    }
+
+    @DeleteMapping("/{orderId}/items/{itemId}")
+    public OrderResponse removeItem(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            Authentication authentication)
+    {
+        return OrderResponse.fromEntity(orderService.removeItem(orderId, itemId, authentication));
+    }
+
+    @PutMapping("/{orderId}/items/{itemId}/increase")
+    public OrderResponse increaseItemQuantity(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            @Valid @RequestBody OrderItemQuantityUpdateRequest request,
+            Authentication authentication)
+    {
+        return OrderResponse.fromEntity(orderService.increaseItemQuantity(orderId, itemId, request.amount(), authentication));
+    }
+
+    @PutMapping("/{orderId}/items/{itemId}/decrease")
+    public OrderResponse decreaseItemQuantity(
+            @PathVariable Long orderId,
+            @PathVariable Long itemId,
+            @Valid @RequestBody OrderItemQuantityUpdateRequest request,
+            Authentication authentication)
+    {
+        return OrderResponse.fromEntity(orderService.decreaseItemQuantity(orderId, itemId, request.amount(), authentication));
     }
 }

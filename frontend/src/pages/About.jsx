@@ -65,17 +65,15 @@ function About() {
 
         <div style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+          gridTemplateColumns: "1fr 1fr 1fr",
           gap: "1px",
           background: theme.border,
           border: `1px solid ${theme.border}`,
           marginTop: "48px",
         }}>
           {[
-            { number: "33%", label: "Irish owned" },
-            { number: "33%", label: "Polish owned" },
-            { number: "33%", label: "English owned" },
-            { number: "66%", label: "Big Dick Energy" },
+            { number: "100%", label: "Irish owned" },
+            { number: "15+", label: "Products" },
             { number: "Next day", label: "Delivery" },
           ].map(stat => (
             <div key={stat.label} style={{
