@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import theme from "../styles/theme";
 import LogoutButton from "../components/LogoutButton.jsx";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
 function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,12 +88,16 @@ function AdminDashboard() {
     category: ""
   });
   const [editingProduct, setEditingProduct] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   function resetForm() {
     setForm({ name: "", description: "", price: "", stock: "", category: "" });
     setEditingProduct(null);
     setError("");
     setMessage("");
+    setImageFile(null);
+    setImagePreview(null);
   }
 
   function handleInputChange(field, value) {
@@ -111,6 +117,28 @@ function AdminDashboard() {
     });
     setError("");
     setMessage("");
+    setImageFile(null);
+    setImagePreview(null);
+  }
+
+  async function handleDeleteImage() {
+    if (!editingProduct) return;
+    setSaving(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${BASE_URL}/api/products/${editingProduct.id}/image`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Failed to remove image");
+      setImagePreview(null);
+      setImageFile(null);
+      setMessage("Image removed.");
+    } catch (err) {
+      setError(err.message || "Failed to remove image.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function selectOrder(order) {
@@ -178,15 +206,29 @@ function AdminDashboard() {
     };
 
     try {
+      let savedId;
       if (editingProduct) {
         await apiFetch(`/api/products/${editingProduct.id}`, {
           method: "PUT",
           body: JSON.stringify(payload)
         });
+        savedId = editingProduct.id;
       } else {
-        await apiFetch("/api/products", {
+        const created = await apiFetch("/api/products", {
           method: "POST",
           body: JSON.stringify(payload)
+        });
+        savedId = created.id;
+      }
+
+      if (imageFile && savedId) {
+        const formData = new FormData();
+        formData.append("file", imageFile);
+        const token = localStorage.getItem("token");
+        await fetch(`${BASE_URL}/api/products/${savedId}/image`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData
         });
       }
 
@@ -413,6 +455,43 @@ function AdminDashboard() {
                   placeholder="0"
                   style={{ fontFamily: "'Arial', sans-serif", width: "100%", padding: "12px", border: `1px solid ${theme.border}`, boxSizing: "border-box", borderRadius: "6px", backgroundColor: theme.backgroundWhite, fontSize: "16px", transition: "border-color 0.2s" }}
                 />
+              </div>
+
+              <div>
+                <label style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, fontWeight: "600", display: "block", marginBottom: "8px", fontSize: "14px" }}>Product Image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setImageFile(file);
+                      setImagePreview(URL.createObjectURL(file));
+                    }
+                  }}
+                  disabled={saving}
+                  style={{ fontFamily: "'Arial', sans-serif", width: "100%", padding: "8px", border: `1px solid ${theme.border}`, boxSizing: "border-box", borderRadius: "6px", backgroundColor: theme.backgroundWhite, fontSize: "14px" }}
+                />
+                {(imagePreview || editingProduct) && (
+                  <div style={{ marginTop: "10px", display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                    <img
+                      src={imagePreview || `${BASE_URL}/api/products/${editingProduct?.id}/image`}
+                      alt="Product preview"
+                      onError={(e) => { e.target.style.display = "none"; }}
+                      style={{ maxWidth: "120px", maxHeight: "120px", borderRadius: "6px", border: `1px solid ${theme.border}`, objectFit: "cover" }}
+                    />
+                    {editingProduct && !imageFile && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteImage}
+                        disabled={saving}
+                        style={{ padding: "6px 12px", backgroundColor: theme.errorBackground, color: theme.errorText, border: `1px solid ${theme.errorText}`, borderRadius: "4px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px" }}
+                      >
+                        Remove Image
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "10px" }}>
