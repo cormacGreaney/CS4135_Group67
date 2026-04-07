@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.cs4135.group3.order_service.model.Order;
 import com.cs4135.group3.order_service.model.OrderStatus;
 import com.cs4135.group3.order_service.requests.AddOrderItemRequest;
 import com.cs4135.group3.order_service.requests.OrderRequest;
@@ -38,6 +39,17 @@ public class OrderController
     public OrderResponse createOrder(@RequestBody OrderRequest orderRequest, Authentication authentication)
     {
         return OrderResponse.fromEntity(orderService.createOrder(orderRequest, authentication));
+    }
+
+    @GetMapping
+    public List<OrderResponse> getOrders(
+            @RequestParam(required = false) OrderStatus status,
+            Authentication authentication)
+    {
+        List<Order> orders = status == null
+                ? orderService.getOrders(authentication)
+                : orderService.getOrdersByStatus(status, authentication);
+        return orders.stream().map(OrderResponse::fromEntity).toList();
     }
 
     @GetMapping("/user/{userId}")

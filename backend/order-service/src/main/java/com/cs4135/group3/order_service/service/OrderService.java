@@ -100,6 +100,18 @@ public class OrderService {
         return orderRepository.findByUserId(userId);
     }
 
+    public List<Order> getOrders(Authentication authentication)
+    {
+        enforceAdmin(authentication);
+        return orderRepository.findAll();
+    }
+
+    public List<Order> getOrdersByStatus(OrderStatus status, Authentication authentication)
+    {
+        enforceAdmin(authentication);
+        return orderRepository.findByStatus(status);
+    }
+
     public Order getOrderById(Long id, Authentication authentication)
     {
         Order order = orderRepository.findById(id)
