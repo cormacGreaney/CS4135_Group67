@@ -52,6 +52,20 @@ public class OrderController
         return orders.stream().map(OrderResponse::fromEntity).toList();
     }
 
+    @GetMapping("/allOrders")
+    public List<OrderResponse> getAllOrders(Authentication authentication)
+    {
+        return orderService.getOrders(authentication).stream().map(OrderResponse::fromEntity).toList();
+    }
+
+    @GetMapping("/orderBy/{status}")
+    public List<OrderResponse> getOrdersByStatus(
+            @PathVariable OrderStatus status,
+            Authentication authentication)
+    {
+        return orderService.getOrdersByStatus(status, authentication).stream().map(OrderResponse::fromEntity).toList();
+    }
+
     @GetMapping("/user/{userId}")
     public List<OrderResponse> getOrdersByUserId(@PathVariable Long userId, Authentication authentication)
     {
