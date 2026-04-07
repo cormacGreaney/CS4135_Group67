@@ -48,7 +48,7 @@ public class Order
     private LocalDateTime orderedDate;
 
     // Cascade ensures new order items are persisted when the parent order is saved.
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Getter(AccessLevel.NONE)
     private List<OrderItem> orderItems;
 

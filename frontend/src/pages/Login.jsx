@@ -22,6 +22,10 @@ function validateAuth(email, password, confirmPassword, mode, acceptedTerms, isO
     if (!isOver18) return "You must confirm that you are over 18";
   }
 
+function validateLogin(email, password) {
+  if (!email.trim()) return "Email is required";
+  if (!email.includes("@") || !email.includes(".")) return "Invalid email format";
+  if (!password) return "Password is required";
   return null;
 }
 
@@ -67,12 +71,11 @@ function Login({ initialMode = "login" }) {
     }
 
     setLoading(true);
-
     try {
       const endpoint = mode === "register" ? "/api/auth/register" : "/api/auth/login";
       const data = await apiFetch(endpoint, {
         method: "POST",
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
 
       if (!data.accessToken) {
@@ -85,11 +88,8 @@ function Login({ initialMode = "login" }) {
       const userData = await apiFetch("/api/users/me");
       setUser(userData);
 
-      if(userData.role === "ADMINISTRATOR") {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      if (userData.role === "ADMINISTRATOR") navigate("/admin");
+      else navigate("/dashboard");
     } catch (err) {
       setError(err.message || (mode === "register" ? "Registration failed. Please try again." : "Login failed. Please check your credentials and try again."));
     } finally {
