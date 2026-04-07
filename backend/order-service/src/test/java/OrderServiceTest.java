@@ -310,6 +310,59 @@ class OrderServiceTest {
     }
 
     @Test
+    void getOrdersReturnsAllOrdersForAdmin() {
+        Order firstOrder = new Order();
+        firstOrder.setId(1L);
+        firstOrder.setStatus(OrderStatus.PENDING);
+
+        Order secondOrder = new Order();
+        secondOrder.setId(2L);
+        secondOrder.setStatus(OrderStatus.PAID);
+
+        when(orderRepository.findAll()).thenReturn(List.of(firstOrder, secondOrder));
+
+        List<Order> orders = orderService.getOrders(ADMIN_AUTH);
+
+        assertEquals(2, orders.size());
+        verify(orderRepository).findAll();
+    }
+
+    @Test
+    void getOrdersRejectsNonAdmin() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.getOrders(CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("Administrator role required", exception.getReason());
+    }
+
+    @Test
+    void getOrdersByStatusReturnsFilteredOrdersForAdmin() {
+        Order paidOrder = new Order();
+        paidOrder.setId(3L);
+        paidOrder.setStatus(OrderStatus.PAID);
+
+        when(orderRepository.findByStatus(OrderStatus.PAID)).thenReturn(List.of(paidOrder));
+
+        List<Order> orders = orderService.getOrdersByStatus(OrderStatus.PAID, ADMIN_AUTH);
+
+        assertEquals(1, orders.size());
+        assertEquals(OrderStatus.PAID, orders.getFirst().getStatus());
+        verify(orderRepository).findByStatus(OrderStatus.PAID);
+    }
+
+    @Test
+    void getOrdersByStatusRejectsNonAdmin() {
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> orderService.getOrdersByStatus(OrderStatus.PAID, CUSTOMER_AUTH));
+
+        assertEquals(403, exception.getStatusCode().value());
+        assertEquals("Administrator role required", exception.getReason());
+    }
+
+    @Test
     void getOrderByIdReturnsOrderWhenFound() {
         Order order = new Order();
         order.setId(7L);
