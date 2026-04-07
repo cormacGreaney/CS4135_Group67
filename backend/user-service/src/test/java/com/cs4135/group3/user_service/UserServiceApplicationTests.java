@@ -1,5 +1,6 @@
 package com.cs4135.group3.user_service;
 
+import com.cs4135.group3.user_service.config.JwtProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,7 @@ import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -35,6 +37,9 @@ class UserServiceApplicationTests {
 
 	@Autowired
 	ObjectMapper objectMapper;
+
+	@Autowired
+	JwtProperties jwtProperties;
 
 	@Test
 	void contextLoads() {
@@ -90,6 +95,138 @@ class UserServiceApplicationTests {
 		String body = "{ \"email\": \"nope@example.com\", \"password\": \"wrongwrong\" }";
 		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void actuatorHealthIsUpWithoutAuthentication() throws Exception {
+		mockMvc.perform(get("/actuator/health").accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("UP"));
+	}
+
+	@Test
+	void meWithMalformedBearerTokenReturnsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer not-a-valid-jwt")
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meWithWrongSignatureTokenReturnsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer " + JwtTestTokens.signedWithWrongSecret())
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meWithExpiredTokenReturnsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer " + JwtTestTokens.expired(jwtProperties))
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meWithMissingRoleClaimReturnsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer " + JwtTestTokens.missingRoleClaim(jwtProperties))
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void meWithEmptyBearerTokenReturnsUnauthorized() throws Exception {
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer ")
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void changePasswordRequiresAuthentication() throws Exception {
+		mockMvc.perform(put("/api/users/me/password")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{ \"currentPassword\": \"password12\", \"newPassword\": \"newpassword12\" }"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void changePasswordWithWrongCurrentPasswordReturnsUnauthorized() throws Exception {
+		String email = "cpw-" + UUID.randomUUID() + "@example.com";
+		String reg = "{ \"email\": \"" + email + "\", \"password\": \"password12\" }";
+		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(reg))
+				.andExpect(status().isCreated());
+		MvcResult login = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(reg))
+				.andExpect(status().isOk())
+				.andReturn();
+		String token = objectMapper.readTree(login.getResponse().getContentAsString()).get("accessToken").asText();
+		mockMvc.perform(put("/api/users/me/password")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{ \"currentPassword\": \"wrongpass1\", \"newPassword\": \"newpassword12\" }"))
+				.andExpect(status().isUnauthorized())
+				.andExpect(jsonPath("$.message").value("Current password is incorrect"));
+	}
+
+	@Test
+	void changePasswordRejectsNewPasswordTooShort() throws Exception {
+		String email = "cpshort-" + UUID.randomUUID() + "@example.com";
+		String reg = "{ \"email\": \"" + email + "\", \"password\": \"password12\" }";
+		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(reg))
+				.andExpect(status().isCreated());
+		MvcResult login = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(reg))
+				.andExpect(status().isOk())
+				.andReturn();
+		String token = objectMapper.readTree(login.getResponse().getContentAsString()).get("accessToken").asText();
+		mockMvc.perform(put("/api/users/me/password")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{ \"currentPassword\": \"password12\", \"newPassword\": \"short\" }"))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void changePasswordRejectsWhenNewEqualsCurrent() throws Exception {
+		String email = "cpsame-" + UUID.randomUUID() + "@example.com";
+		String reg = "{ \"email\": \"" + email + "\", \"password\": \"password12\" }";
+		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(reg))
+				.andExpect(status().isCreated());
+		MvcResult login = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(reg))
+				.andExpect(status().isOk())
+				.andReturn();
+		String token = objectMapper.readTree(login.getResponse().getContentAsString()).get("accessToken").asText();
+		mockMvc.perform(put("/api/users/me/password")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{ \"currentPassword\": \"password12\", \"newPassword\": \"password12\" }"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("New password must be different from the current password"));
+	}
+
+	@Test
+	void changePasswordThenLoginWithNewPassword() throws Exception {
+		String email = "cpok-" + UUID.randomUUID() + "@example.com";
+		String reg = "{ \"email\": \"" + email + "\", \"password\": \"password12\" }";
+		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(reg))
+				.andExpect(status().isCreated());
+		MvcResult login = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(reg))
+				.andExpect(status().isOk())
+				.andReturn();
+		String token = objectMapper.readTree(login.getResponse().getContentAsString()).get("accessToken").asText();
+		mockMvc.perform(put("/api/users/me/password")
+						.header("Authorization", "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{ \"currentPassword\": \"password12\", \"newPassword\": \"newpassword12\" }"))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(reg))
+				.andExpect(status().isUnauthorized());
+		String newLogin = "{ \"email\": \"" + email + "\", \"password\": \"newpassword12\" }";
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(newLogin))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.accessToken").isString());
 	}
 
 }
