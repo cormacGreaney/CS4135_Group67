@@ -92,4 +92,11 @@ class UserServiceApplicationTests {
 				.andExpect(status().isUnauthorized());
 	}
 
+	@Test
+	void actuatorHealthIsUpWithoutAuthentication() throws Exception {
+		mockMvc.perform(get("/actuator/health").accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("UP"));
+	}
+
 }
