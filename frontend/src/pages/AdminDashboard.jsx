@@ -6,6 +6,35 @@ import LogoutButton from "../components/LogoutButton.jsx";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
+function formatCurrency(value) {
+  return `€${Number(value ?? 0).toFixed(2)}`;
+}
+
+function formatDate(value) {
+  if (!value) {
+    return "N/A";
+  }
+
+  return new Date(value).toLocaleDateString();
+}
+
+function statusBadge(status) {
+  const colours = {
+    PENDING: { bg: "#fff8e1", text: "#b8860b" },
+    PAID: { bg: "#e8f0fe", text: "#1a56db" },
+    SHIPPED: { bg: "#e8f0fe", text: "#1a56db" },
+    DELIVERED: { bg: "#e6f4ea", text: "#2e7d32" },
+    CANCELLED: { bg: theme.errorBackground, text: theme.errorText },
+  };
+  const colour = colours[status] || { bg: theme.backgroundWarm, text: theme.textMuted };
+
+  return (
+    <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "600", letterSpacing: "0.04em", backgroundColor: colour.bg, color: colour.text }}>
+      {status}
+    </span>
+  );
+}
+
 function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +42,7 @@ function AdminDashboard() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState(null);
-  const [orderId, setOrderId] = useState("");
+  const [orderLookupNumber, setOrderLookupNumber] = useState("");
   const [orderStatus, setOrderStatus] = useState("PENDING");
   const [orderDetails, setOrderDetails] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -59,7 +88,7 @@ function AdminDashboard() {
 
   async function loadOrderById(id) {
     if (!id.trim()) {
-      setError("Order ID is required.");
+      setError("Order number is required.");
       setOrders([]);
       setOrderDetails(null);
       setSelectedOrder(null);
@@ -83,6 +112,41 @@ function AdminDashboard() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadOrderByNumber(orderNumber) {
+    const lookupValue = String(orderNumber ?? "").trim();
+
+    if (!lookupValue) {
+      setError("Order number is required.");
+      setOrders([]);
+      setOrderDetails(null);
+      setSelectedOrder(null);
+      return;
+    }
+
+    const normalizedLookup = lookupValue.replace(/^#/, "");
+    const parsedOrderNumber = Number.parseInt(normalizedLookup, 10);
+
+    if (!Number.isInteger(parsedOrderNumber) || parsedOrderNumber < 1) {
+      setError("Order number must be a positive number.");
+      setOrders([]);
+      setOrderDetails(null);
+      setSelectedOrder(null);
+      return;
+    }
+
+    const matchedOrder = allOrders[parsedOrderNumber - 1];
+
+    if (!matchedOrder?.id) {
+      setError("Order number not found.");
+      setOrders([]);
+      setOrderDetails(null);
+      setSelectedOrder(null);
+      return;
+    }
+
+    await loadOrderById(String(matchedOrder.id));
   }
 
   async function loadAllOrders() {
@@ -171,9 +235,9 @@ function AdminDashboard() {
   }
 
   function selectOrder(order) {
+    setOrders([order]);
     setSelectedOrder(order);
     setOrderDetails(order);
-    setOrderId(order.id.toString());
     setOrderStatus(order.status);
   }
 
@@ -272,19 +336,22 @@ function AdminDashboard() {
   }
 
   async function updateOrderStatus(){
-    if(!orderId.trim()) {
-      setError("Order ID is required.");
+    if (!selectedOrder?.id) {
+      setError("Order number is required.");
       return;
     }
+
+    const targetOrderId = selectedOrder.id;
+
     setSaving(true);
     setError("");
     setMessage("");
 
     try {
-      await apiFetch(`/api/order/${orderId}/status?status=${encodeURIComponent(orderStatus)}`, {
+      await apiFetch(`/api/order/${targetOrderId}/status?status=${encodeURIComponent(orderStatus)}`, {
         method: "PUT"
       });
-      await loadOrderById(orderId);
+      await loadOrderById(String(targetOrderId));
       await loadAllOrders();
       await loadPendingOrdersCount();
       setMessage("Order status updated successfully.");
@@ -296,19 +363,22 @@ function AdminDashboard() {
   }
 
   async function cancelOrder() {
-    if(!orderId.trim()) {
-      setError("Order ID is required.");
+    if (!selectedOrder?.id) {
+      setError("Order number is required.");
       return;
     }
+
+    const targetOrderId = selectedOrder.id;
+
     setSaving(true);
     setError("");
     setMessage("");
 
     try {
-      await apiFetch(`/api/order/${orderId}/cancel`, {
+      await apiFetch(`/api/order/${targetOrderId}/cancel`, {
         method: "PUT"
       });
-      await loadOrderById(orderId);
+      await loadOrderById(String(targetOrderId));
       await loadAllOrders();
       await loadPendingOrdersCount();
       setMessage("Order cancelled successfully.");
@@ -351,6 +421,17 @@ function AdminDashboard() {
   const filteredAllOrders = allOrdersFilter === "ALL"
     ? allOrders
     : allOrders.filter(order => String(order.status || "").toUpperCase() === allOrdersFilter);
+
+  const orderNumberById = new Map(allOrders.map((order, index) => [String(order.id), index + 1]));
+  const getDisplayOrderNumber = (order) => orderNumberById.get(String(order?.id)) ?? null;
+  const getOrderDetailsCode = (order) => {
+    const customerNumber = Number.parseInt(String(order?.userId ?? "0"), 10) || 0;
+    const priceDigits = Math.max(0, Math.round(Number(order?.totalPrice ?? 0) * 100));
+    const orderNumber = getDisplayOrderNumber(order) ?? 0;
+    const combinedDigits = `${customerNumber}${priceDigits}${orderNumber}`;
+
+    return `#${combinedDigits.padStart(7, "0")}`;
+  };
 
   return (
     <div style={{ backgroundColor: theme.backgroundWarm, minHeight: "100vh", padding: "20px" }}>
@@ -615,12 +696,12 @@ function AdminDashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 340px) 1fr", gap: "20px", alignItems: "start" }}>
           <section style={{ backgroundColor: theme.backgroundWhite, padding: "20px", borderRadius: "8px", border: `1px solid ${theme.border}` }}>
             <h3 style={{ color: theme.textPrimary, margin: "0 0 14px 0", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "10px" }}>Order Lookup</h3>
-            <label style={{ color: theme.textPrimary, fontWeight: "500" }}>Order ID:</label>
+            <label style={{ color: theme.textPrimary, fontWeight: "500" }}>Order Number:</label>
             <input
               type="text"
-              value={orderId}
+              value={orderLookupNumber}
               onChange={e => {
-                setOrderId(e.target.value);
+                setOrderLookupNumber(e.target.value);
                 if (error) setError("");
                 if (message) setMessage("");
               }}
@@ -628,14 +709,14 @@ function AdminDashboard() {
               style={{ width: "100%", padding: "12px", marginTop: "5px", border: `1px solid ${theme.border}`, borderRadius: "4px", backgroundColor: theme.backgroundWhite, boxSizing: "border-box" }}
             />
             <button
-              onClick={() => loadOrderById(orderId)}
+              onClick={() => loadOrderByNumber(orderLookupNumber)}
               disabled={saving || loading}
               style={{ width: "100%", padding: "10px 16px", backgroundColor: theme.buttonPrimary, color: theme.buttonPrimaryText, border: "none", borderRadius: "4px", cursor: saving || loading ? "not-allowed" : "pointer", marginTop: "10px" }}
             >
               {loading ? "Loading..." : "Find Order"}
             </button>
             <p style={{ color: theme.textMuted, margin: "12px 0 0 0", fontSize: "13px" }}>
-              Search an order by ID, then manage it on the right panel.
+              Search an order by number, then manage it on the right panel.
             </p>
           </section>
 
@@ -643,15 +724,15 @@ function AdminDashboard() {
             <h3 style={{ color: theme.textPrimary, margin: "0 0 16px 0", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "10px" }}>Order Management</h3>
 
             {!selectedOrder && (
-              <p style={{ color: theme.textMuted, marginTop: 0 }}>Search by order ID to view and manage an order.</p>
+              <p style={{ color: theme.textMuted, marginTop: 0 }}>Search by order number to view and manage an order.</p>
             )}
 
             {selectedOrder && (
               <>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "10px", marginBottom: "16px" }}>
                   <div style={{ border: `1px solid ${theme.border}`, borderRadius: "6px", padding: "10px" }}>
-                    <p style={{ color: theme.textMuted, margin: "0 0 4px 0", fontSize: "12px" }}>Order ID</p>
-                    <p style={{ color: theme.textPrimary, margin: 0, fontWeight: "600" }}>{selectedOrder.id}</p>
+                    <p style={{ color: theme.textMuted, margin: "0 0 4px 0", fontSize: "12px" }}>Order Number</p>
+                    <p style={{ color: theme.textPrimary, margin: 0, fontWeight: "600" }}>{getDisplayOrderNumber(selectedOrder) ?? "-"}</p>
                   </div>
                   <div style={{ border: `1px solid ${theme.border}`, borderRadius: "6px", padding: "10px" }}>
                     <p style={{ color: theme.textMuted, margin: "0 0 4px 0", fontSize: "12px" }}>User ID</p>
@@ -708,25 +789,55 @@ function AdminDashboard() {
                 <p style={{ color: theme.textMuted, marginTop: 0 }}>No orders loaded yet.</p>
               )}
               {!!orders.length && (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Order ID</th>
-                        <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Status</th>
-                        <th style={{ textAlign: "right", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map(order => (
-                        <tr key={order.id}>
-                          <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.id}</td>
-                          <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.status}</td>
-                          <td style={{ padding: "10px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>€{order.totalPrice?.toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div style={{ display: "grid", gap: "16px" }}>
+                  {orders.map(order => (
+                    <section key={order.id} style={{ border: `1px solid ${theme.border}`, borderRadius: "10px", padding: "18px", backgroundColor: theme.backgroundWarm }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+                        <h5 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, margin: 0, fontSize: "18px", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "8px" }}>
+                          Order Details - {getOrderDetailsCode(order)}
+                        </h5>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ color: theme.textMuted, fontSize: "14px", fontWeight: "600" }}>Status:</span>
+                          {statusBadge(order.status)}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "8px 24px", marginBottom: "20px" }}>
+                        <p style={{ color: theme.textPrimary, margin: "4px 0", fontSize: "14px" }}><strong style={{ color: theme.textMuted }}>Order Number:</strong> {getDisplayOrderNumber(order) ?? "-"}</p>
+                        <p style={{ color: theme.textPrimary, margin: "4px 0", fontSize: "14px" }}><strong style={{ color: theme.textMuted }}>User ID:</strong> {order.userId ?? "N/A"}</p>
+                        <p style={{ color: theme.textPrimary, margin: "4px 0", fontSize: "14px" }}><strong style={{ color: theme.textMuted }}>Date:</strong> {formatDate(order.orderedDate)}</p>
+                        <p style={{ color: theme.textPrimary, margin: "4px 0", fontSize: "14px" }}><strong style={{ color: theme.textMuted }}>Total:</strong> {formatCurrency(order.totalPrice)}</p>
+                      </div>
+
+                      <h6 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, margin: "0 0 12px 0", fontSize: "16px", paddingTop: "16px", borderTop: `1px solid ${theme.border}` }}>Items</h6>
+                      {order.items?.length ? (
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: "left", padding: "10px 12px", borderBottom: `1px solid ${theme.border}`, color: theme.textMuted, fontSize: "12px", fontWeight: "600", letterSpacing: "0.06em", textTransform: "uppercase", backgroundColor: theme.backgroundWhite }}>Product</th>
+                                <th style={{ textAlign: "right", padding: "10px 12px", borderBottom: `1px solid ${theme.border}`, color: theme.textMuted, fontSize: "12px", fontWeight: "600", letterSpacing: "0.06em", textTransform: "uppercase", backgroundColor: theme.backgroundWhite }}>Price</th>
+                                <th style={{ textAlign: "right", padding: "10px 12px", borderBottom: `1px solid ${theme.border}`, color: theme.textMuted, fontSize: "12px", fontWeight: "600", letterSpacing: "0.06em", textTransform: "uppercase", backgroundColor: theme.backgroundWhite }}>Qty</th>
+                                <th style={{ textAlign: "right", padding: "10px 12px", borderBottom: `1px solid ${theme.border}`, color: theme.textMuted, fontSize: "12px", fontWeight: "600", letterSpacing: "0.06em", textTransform: "uppercase", backgroundColor: theme.backgroundWhite }}>Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {order.items.map((item, index) => (
+                                <tr key={`${order.id}-${index}`}>
+                                  <td style={{ padding: "12px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: "14px" }}>{item.productName || item.name || "Unknown product"}</td>
+                                  <td style={{ padding: "12px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: "14px", whiteSpace: "nowrap" }}>{formatCurrency(item.price)}</td>
+                                  <td style={{ padding: "12px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: "14px" }}>{item.quantity ?? 0}</td>
+                                  <td style={{ padding: "12px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary, fontSize: "14px", whiteSpace: "nowrap" }}>{formatCurrency(Number(item.price ?? 0) * Number(item.quantity ?? 0))}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p style={{ color: theme.textMuted, margin: 0 }}>No items found for this order.</p>
+                      )}
+                    </section>
+                  ))}
                 </div>
               )}
             </div>
@@ -769,7 +880,7 @@ function AdminDashboard() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Order ID</th>
+                    <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Order Number</th>
                     <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>User ID</th>
                     <th style={{ textAlign: "left", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Status</th>
                     <th style={{ textAlign: "right", padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>Total</th>
@@ -780,14 +891,14 @@ function AdminDashboard() {
                 <tbody>
                   {filteredAllOrders.map(order => (
                     <tr key={order.id}>
-                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.id}</td>
+                      <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{getDisplayOrderNumber(order) ?? "-"}</td>
                       <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.userId}</td>
                       <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.status}</td>
                       <td style={{ padding: "10px", textAlign: "right", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>€{order.totalPrice?.toFixed(2)}</td>
                       <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}`, color: theme.textPrimary }}>{order.orderedDate ? new Date(order.orderedDate).toLocaleDateString() : "-"}</td>
                       <td style={{ padding: "10px", borderBottom: `1px solid ${theme.border}` }}>
                         <button
-                          onClick={() => selectOrder(order)}
+                          onClick={() => loadOrderById(String(order.id))}
                           style={{ padding: "6px 10px", borderRadius: "4px", border: `1px solid ${theme.buttonPrimary}`, backgroundColor: theme.backgroundWhite, color: theme.buttonPrimary, cursor: "pointer" }}
                         >
                           Select

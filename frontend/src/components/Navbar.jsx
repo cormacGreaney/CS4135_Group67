@@ -11,6 +11,7 @@ function Navbar() {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const accountPath = user?.role === "ADMINISTRATOR" ? "/admin" : "/dashboard";
   const isAccountActive = location.pathname === "/dashboard" || location.pathname === "/admin";
+  const isAuthActive = location.pathname === "/login" || location.pathname === "/register";
 
   const linkStyle = (path, isActiveOverride = null) => ({
     textDecoration: "none",
@@ -54,10 +55,7 @@ function Navbar() {
         {user ? (
           <Link to={accountPath} style={linkStyle(accountPath, isAccountActive)}>Account</Link>
         ) : (
-          <>
-            <Link to="/login" style={linkStyle("/login")}>Login</Link>
-            <Link to="/register" style={linkStyle("/register")}>Register</Link>
-          </>
+          <Link to="/login" style={linkStyle("/login", isAuthActive)}>Login / Register</Link>
         )}
         <Link to="/cart" style={{
           ...linkStyle("/cart"),
