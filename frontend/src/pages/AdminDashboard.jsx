@@ -183,6 +183,12 @@ function AdminDashboard() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [customCategories, setCustomCategories] = useState([]);
+  const [creatingNewCategory, setCreatingNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+
+  const availableCategories = [...new Set([...products.map((product) => product.category).filter(Boolean), ...customCategories, form.category].filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
 
   function resetForm() {
     setForm({ name: "", description: "", price: "", stock: "", category: "" });
@@ -191,6 +197,8 @@ function AdminDashboard() {
     setMessage("");
     setImageFile(null);
     setImagePreview(null);
+    setCreatingNewCategory(false);
+    setNewCategoryName("");
   }
 
   function handleInputChange(field, value) {
@@ -208,10 +216,26 @@ function AdminDashboard() {
       stock: product.stockQuantity?.toString() || "",
       category: product.category || ""
     });
+    setCreatingNewCategory(false);
+    setNewCategoryName("");
     setError("");
     setMessage("");
     setImageFile(null);
     setImagePreview(null);
+  }
+
+  function handleAddCategory() {
+    const categoryToAdd = newCategoryName.trim();
+
+    if (!categoryToAdd) {
+      setError("Category name is required.");
+      return;
+    }
+
+    setCustomCategories((current) => (current.includes(categoryToAdd) ? current : [...current, categoryToAdd]));
+    handleInputChange("category", categoryToAdd);
+    setNewCategoryName("");
+    setCreatingNewCategory(false);
   }
 
   async function handleDeleteImage() {
@@ -540,14 +564,54 @@ function AdminDashboard() {
               <div style={{ display: "flex", gap: "15px" }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, fontWeight: "600", display: "block", marginBottom: "8px", fontSize: "14px" }}>Category</label>
-                  <input
-                    type="text"
-                    value={form.category}
-                    onChange={e => handleInputChange("category", e.target.value)}
+                  <select
+                    value={creatingNewCategory ? "__new__" : form.category}
+                    onChange={(e) => {
+                      const selectedValue = e.target.value;
+
+                      if (selectedValue === "__new__") {
+                        setCreatingNewCategory(true);
+                        handleInputChange("category", "");
+                        return;
+                      }
+
+                      setCreatingNewCategory(false);
+                      setNewCategoryName("");
+                      handleInputChange("category", selectedValue);
+                    }}
                     disabled={saving}
-                    placeholder="e.g., Alcohol"
                     style={{ fontFamily: "'Arial', sans-serif", width: "100%", padding: "12px", border: `1px solid ${theme.border}`, boxSizing: "border-box", borderRadius: "6px", backgroundColor: theme.backgroundWhite, fontSize: "16px", transition: "border-color 0.2s" }}
-                  />
+                  >
+                    <option value="">Select category</option>
+                    {availableCategories.map((categoryOption) => (
+                      <option key={categoryOption} value={categoryOption}>{categoryOption}</option>
+                    ))}
+                    <option value="__new__">+ Create New Category</option>
+                  </select>
+
+                  {creatingNewCategory && (
+                    <div style={{ marginTop: "10px", display: "flex", gap: "8px" }}>
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => {
+                          setNewCategoryName(e.target.value);
+                          if (error) setError("");
+                        }}
+                        disabled={saving}
+                        placeholder="Enter new category name"
+                        style={{ fontFamily: "'Arial', sans-serif", flex: 1, padding: "10px", border: `1px solid ${theme.border}`, boxSizing: "border-box", borderRadius: "6px", backgroundColor: theme.backgroundWhite, fontSize: "14px" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCategory}
+                        disabled={saving}
+                        style={{ padding: "10px 12px", border: `1px solid ${theme.buttonPrimary}`, borderRadius: "6px", backgroundColor: theme.backgroundWhite, color: theme.buttonPrimary, cursor: saving ? "not-allowed" : "pointer", fontWeight: "600", fontSize: "13px" }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, fontWeight: "600", display: "block", marginBottom: "8px", fontSize: "14px" }}>Price (€)</label>
