@@ -97,6 +97,95 @@ function About() {
             </div>
           ))}
         </div>
+
+        {/* Contact */}
+        <div style={{
+          marginTop: "48px",
+          paddingTop: "40px",
+          borderTop: `1px solid ${theme.border}`,
+        }}>
+          <p style={{
+            fontSize: "11px",
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            color: theme.textAccent,
+            marginBottom: "24px",
+          }}>
+            Get in Touch
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+            {/* Email */}
+            <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+              <span style={{
+                fontSize: "13px",
+                color: theme.textMuted,
+                minWidth: "60px",
+                letterSpacing: "0.05em"
+              }}>
+                Email
+              </span>
+              <a
+                href="mailto:limerickliquor@gmail.com"
+                style={{
+                  fontSize: "15px",
+                  color: theme.textPrimary,
+                  textDecoration: "none",
+                  borderBottom: `1px solid ${theme.border}`
+                }}
+              >
+                limerickliquor@gmail.com
+              </a>
+            </div>
+
+            {/* Phone */}
+            <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+              <span style={{
+                fontSize: "13px",
+                color: theme.textMuted,
+                minWidth: "60px",
+                letterSpacing: "0.05em"
+              }}>
+                Phone
+              </span>
+              <a
+                href="tel:+35361234567"
+                style={{
+                  fontSize: "15px",
+                  color: theme.textPrimary,
+                  textDecoration: "none",
+                  borderBottom: `1px solid ${theme.border}`
+                }}
+              >
+                +353 61 234 567
+              </a>
+            </div>
+
+            {/* Address */}
+            <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+              <span style={{
+                fontSize: "13px",
+                color: theme.textMuted,
+                minWidth: "60px",
+                letterSpacing: "0.05em"
+              }}>
+                Address
+              </span>
+              <p style={{
+                fontSize: "15px",
+                color: theme.textPrimary,
+                margin: 0,
+                lineHeight: "1.6"
+              }}>
+                O'Connell Street<br />
+                Limerick City<br />
+                V96 X2K1
+              </p>
+            </div>
+
+          </div>
+        </div>
       </div>
     </div>
   );
