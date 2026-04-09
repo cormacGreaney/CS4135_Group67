@@ -93,11 +93,15 @@ services:
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS:-app}
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-dev-internal-token}
       JWT_SECRET: ${JWT_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      # Must use the Compose service name or it will not work when running locally
+      PRODUCT_SERVICE_BASE_URL: http://product-service:8082
     depends_on:
       order-mysql:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      product-service:
+        condition: service_started
     ports:
       - "8085:8085"
 
