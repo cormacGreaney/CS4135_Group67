@@ -51,7 +51,7 @@ public class OrderService {
 
         order.setUserId(userId);
         order.setOrderNumber(UUID.randomUUID().toString());
-        order.setStatus(OrderStatus.PAID);
+        order.setStatus(OrderStatus.PENDING);
         order.setOrderedDate(LocalDateTime.now());
 
         // Convert incoming request items into persistent order items linked back to this order.
@@ -125,6 +125,10 @@ public class OrderService {
         enforceAdmin(authentication);
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Order not found"));
+
+        if (status == OrderStatus.PAID && order.getStatus() != OrderStatus.PAID) {
+            productStockClient.deductStock(order.getOrderItems());
+        }
 
         order.setStatus(status);
 
