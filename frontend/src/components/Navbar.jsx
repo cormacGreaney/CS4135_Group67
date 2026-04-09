@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useContext } from "react";
 import { CartContext } from "../context/CartContext.jsx";
 import { AuthContext } from "../context/AuthContext.jsx";
@@ -8,6 +8,7 @@ function Navbar() {
   const { cart } = useContext(CartContext);
   const { user } = useContext(AuthContext);
   const location = useLocation();
+  const navigate = useNavigate();
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const accountPath = user?.role === "ADMINISTRATOR" ? "/admin" : "/dashboard";
   const isAccountActive = location.pathname === "/dashboard" || location.pathname === "/admin";
@@ -23,6 +24,10 @@ function Navbar() {
     transition: "color 0.2s",
   });
 
+  function goToShop() {
+    navigate("/", { state: { clearFilters: true } });
+  }
+
   return (
     <nav style={{
       background: theme.backgroundWhite,
@@ -37,7 +42,7 @@ function Navbar() {
       top: 0,
       zIndex: 100,
     }}>
-      <Link to="/" style={{ textDecoration: "none" }}>
+      <span onClick={goToShop} style={{ textDecoration: "none", cursor: "pointer" }}>
         <span style={{
           fontFamily: "'Georgia', serif",
           fontSize: "20px",
@@ -47,10 +52,10 @@ function Navbar() {
         }}>
           Limerick Liquor
         </span>
-      </Link>
+      </span>
 
       <div style={{ display: "flex", gap: "32px", alignItems: "center" }}>
-        <Link to="/" style={linkStyle("/")}>Shop</Link>
+        <span onClick={goToShop} style={{ ...linkStyle("/"), cursor: "pointer" }}>Shop</span>
         <Link to="/about" style={linkStyle("/about")}>About</Link>
         {user ? (
           <Link to={accountPath} style={linkStyle(accountPath, isAccountActive)}>Account</Link>
