@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import ProductCard from "../components/ProductCard.jsx";
 import { apiFetch } from "../api/api.js";
 import theme from "../styles/theme";
@@ -12,6 +13,8 @@ function Home() {
   const [ageVerified, setAgeVerified] = useState(
     () => sessionStorage.getItem("ageVerified") === "true"
   );
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     apiFetch("/api/products")
@@ -25,6 +28,13 @@ function Home() {
       });
   }, []);
 
+  useEffect(() => {
+    if (location.state?.clearFilters) {
+      clearFilters();
+      navigate("/", { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
+
   function handleAgeConfirm() {
     sessionStorage.setItem("ageVerified", "true");
     setAgeVerified(true);
@@ -34,13 +44,20 @@ function Home() {
     window.location.href = "https://www.google.com";
   }
 
+  function clearFilters() {
+    setSearch("");
+    setCategory("");
+    setMaxPrice("");
+  }
+
+  const hasFilters = search !== "" || category !== "" || maxPrice !== "";
+
   const aliasMap = {
     "holy water": "guinness",
     "the black stuff": "guinness",
   };
 
   const searchTerm = aliasMap[search.toLowerCase()] ?? search.toLowerCase();
-
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
 
   const filtered = products.filter(p => {
@@ -52,7 +69,6 @@ function Home() {
 
   return (
     <div>
-      {/* Age verification overlay */}
       {!ageVerified && (
         <div style={{
           position: "fixed",
@@ -170,7 +186,7 @@ function Home() {
           A carefully selected collection of premium beverages, delivered to your door.
         </p>
 
-        <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap", alignItems: "center" }}>
           <input
             type="text"
             placeholder="Search products..."
@@ -178,7 +194,7 @@ function Home() {
             onChange={e => setSearch(e.target.value)}
             style={{
               width: "100%",
-              maxWidth: "240px",
+              maxWidth: "200px",
               padding: "12px 16px",
               fontSize: "14px",
               border: `1px solid ${theme.border}`,
@@ -214,7 +230,7 @@ function Home() {
             onChange={e => setMaxPrice(e.target.value)}
             min="0"
             style={{
-              width: "140px",
+              width: "130px",
               padding: "12px 16px",
               fontSize: "14px",
               border: `1px solid ${theme.border}`,
@@ -224,6 +240,25 @@ function Home() {
               color: theme.textPrimary,
             }}
           />
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              style={{
+                background: "none",
+                border: `1px solid ${theme.border}`,
+                color: theme.textMuted,
+                padding: "12px 16px",
+                fontSize: "11px",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                borderRadius: "2px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -231,7 +266,25 @@ function Home() {
         {loading ? (
           <p style={{ color: theme.textMuted, textAlign: "center" }}>Loading products...</p>
         ) : filtered.length === 0 ? (
-          <p style={{ color: theme.textMuted, textAlign: "center" }}>No products found.</p>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ color: theme.textMuted, marginBottom: "16px" }}>No products found.</p>
+            <button
+              onClick={clearFilters}
+              style={{
+                background: "none",
+                border: `1px solid ${theme.border}`,
+                color: theme.textMuted,
+                padding: "10px 20px",
+                fontSize: "11px",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                borderRadius: "2px",
+              }}
+            >
+              Clear Filters
+            </button>
+          </div>
         ) : (
           <div style={{
             display: "grid",
