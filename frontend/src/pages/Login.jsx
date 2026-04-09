@@ -41,6 +41,11 @@ function Login({ initialMode = "login" }) {
   useEffect(() => {
     const routeMode = location.pathname === "/register" ? "register" : "login";
     setMode(routeMode);
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setAcceptedTerms(false);
+    setIsOver18(false);
     setError("");
   }, [location.pathname]);
 
