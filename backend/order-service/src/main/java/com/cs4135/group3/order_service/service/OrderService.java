@@ -51,7 +51,7 @@ public class OrderService {
 
         order.setUserId(userId);
         order.setOrderNumber(UUID.randomUUID().toString());
-        order.setStatus(OrderStatus.PENDING);
+        order.setStatus(OrderStatus.PAID);
         order.setOrderedDate(LocalDateTime.now());
 
         // Convert incoming request items into persistent order items linked back to this order.
