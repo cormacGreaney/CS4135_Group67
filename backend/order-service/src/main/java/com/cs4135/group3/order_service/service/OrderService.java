@@ -126,6 +126,10 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Order not found"));
 
+        if (status == OrderStatus.PAID && order.getStatus() != OrderStatus.PAID) {
+            productStockClient.deductStock(order.getOrderItems());
+        }
+
         order.setStatus(status);
 
         return orderRepository.save(order);

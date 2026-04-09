@@ -408,6 +408,8 @@ class OrderServiceTest {
         Order existingOrder = new Order();
         existingOrder.setId(10L);
         existingOrder.setStatus(OrderStatus.PENDING);
+        existingOrder.setOrderItems(List.of(
+                new OrderItem(null, PRODUCT_ID_1, "Mouse", new BigDecimal("99.99"), 1, existingOrder)));
         when(orderRepository.findById(10L)).thenReturn(Optional.of(existingOrder));
         when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
 
@@ -415,7 +417,26 @@ class OrderServiceTest {
 
         assertEquals(OrderStatus.PAID, updatedOrder.getStatus());
         verify(orderRepository).findById(10L);
+        verify(productStockClient).deductStock(existingOrder.getOrderItems());
         verify(orderRepository).save(existingOrder);
+    }
+
+    @Test
+    void updateOrderStatusDoesNotDeductStockWhenNotMarkingOrderPaid() {
+        Order existingOrder = new Order();
+        existingOrder.setId(10L);
+        existingOrder.setStatus(OrderStatus.PENDING);
+        existingOrder.setOrderItems(List.of(
+                new OrderItem(null, PRODUCT_ID_1, "Mouse", new BigDecimal("99.99"), 1, existingOrder)));
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(existingOrder));
+        when(orderRepository.save(existingOrder)).thenReturn(existingOrder);
+
+        Order updatedOrder = orderService.updateOrderStatus(10L, OrderStatus.SHIPPED, ADMIN_AUTH);
+
+        assertEquals(OrderStatus.SHIPPED, updatedOrder.getStatus());
+        verify(orderRepository).findById(10L);
+        verify(orderRepository).save(existingOrder);
+        verify(productStockClient, org.mockito.Mockito.never()).deductStock(any());
     }
 
     @Test
