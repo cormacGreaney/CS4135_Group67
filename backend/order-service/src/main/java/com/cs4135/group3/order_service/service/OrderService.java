@@ -215,6 +215,7 @@ public class OrderService {
 
         if ("SUCCESS".equalsIgnoreCase(msg.status())) {
             // Stock must be deducted first; if that call fails, the transaction leaves the order in PENDING.
+            productStockClient.deductStock(order.getOrderItems());
             order.setStatus(OrderStatus.PAID);
         }
         else {
