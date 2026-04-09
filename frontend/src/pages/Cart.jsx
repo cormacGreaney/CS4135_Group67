@@ -47,6 +47,27 @@ function Cart() {
         Cart
       </h1>
 
+      <button
+        onClick={() => navigate(-1)}
+        style={{
+          position: "fixed",
+          top: "84px",
+          left: "20px",
+          background: theme.backgroundWhite,
+          border: `1px solid ${theme.border}`,
+          color: theme.textPrimary,
+          padding: "10px 14px",
+          fontSize: "12px",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          cursor: "pointer",
+          borderRadius: "2px",
+          zIndex: 90,
+        }}
+      >
+        ← Back
+      </button>
+
       {cart.length === 0 ? (
         <div style={{
           textAlign: "center",

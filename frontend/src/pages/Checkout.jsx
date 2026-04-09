@@ -55,6 +55,27 @@ function Checkout() {
 
   return (
     <div style={{ maxWidth: "720px", margin: "0 auto", padding: "48px 40px" }}>
+      <button
+        onClick={() => navigate(-1)}
+        style={{
+          position: "fixed",
+          top: "84px",
+          left: "20px",
+          background: theme.backgroundWhite,
+          border: `1px solid ${theme.border}`,
+          color: theme.textPrimary,
+          padding: "10px 14px",
+          fontSize: "12px",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          cursor: "pointer",
+          borderRadius: "2px",
+          zIndex: 90,
+        }}
+      >
+        ← Back
+      </button>
+      
       <p style={{
         fontSize: "11px",
         letterSpacing: "0.15em",
