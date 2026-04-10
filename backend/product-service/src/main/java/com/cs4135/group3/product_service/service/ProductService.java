@@ -165,7 +165,9 @@ public class ProductService {
 			product.setStockQuantity(product.getStockQuantity() - deduction.quantity());
 		}
 	}
-    public void addStock(List<StockAddition> quantity) {
+
+	@Transactional
+	public void addStock(List<StockAddition> quantity) {
         for (StockAddition addition : quantity) {
             Product product = productRepository.findByIdAndDeletedAtIsNull(addition.productId())
                     .orElseThrow(() -> new ResourceNotFoundException("Product not found"));

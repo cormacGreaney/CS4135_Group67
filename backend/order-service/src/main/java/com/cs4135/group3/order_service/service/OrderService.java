@@ -136,7 +136,8 @@ public class OrderService {
             productStockClient.deductStock(order.getOrderItems());
         }
 
-        if (status == OrderStatus.CANCELLED && order.getStatus() != OrderStatus.CANCELLED) {
+        if (status == OrderStatus.CANCELLED && order.getStatus() != OrderStatus.CANCELLED
+                && stockWasDeductedForOrder(order.getStatus())) {
             productStockClient.addStock(order.getOrderItems());
         }
 
@@ -151,6 +152,9 @@ public class OrderService {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Order not found"));
         enforceOwnership(order, authentication, "You can only cancel your own orders");
 
+        if (stockWasDeductedForOrder(order.getStatus())) {
+            productStockClient.addStock(order.getOrderItems());
+        }
         order.setStatus(OrderStatus.CANCELLED);
 
         return orderRepository.save(order);
@@ -233,6 +237,11 @@ public class OrderService {
         }
 
         orderRepository.save(order);
+    }
+
+    /** Stock is deducted when an order reaches PAID; same units stay reserved through shipped/delivered. */
+    private static boolean stockWasDeductedForOrder(OrderStatus status) {
+        return status == OrderStatus.PAID || status == OrderStatus.SHIPPED || status == OrderStatus.DELIVERED;
     }
 
     private void enforceOwnership(Order order, Authentication authentication, String message) {
