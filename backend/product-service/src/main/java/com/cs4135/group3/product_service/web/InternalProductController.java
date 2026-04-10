@@ -32,12 +32,30 @@ public class InternalProductController {
 				.toList());
 	}
 
+    @PostMapping("/stock/add")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void addStock(@Valid @RequestBody DeductStockRequest request) {
+        // This endpoint is for trusted service-to-service calls, not public storefront traffic.
+        productService.addStock(request.items().stream()
+                .map(item -> new ProductService.StockAddition(item.productId(), item.quantity()))
+                .toList());
+    }
+
 	public record DeductStockRequest(
 			@NotEmpty List<@Valid DeductStockItemRequest> items) {
 	}
+
+    public record AddStockRequest(
+            @NotEmpty List<@Valid AddStockRequest> items) {
+    }
 
 	public record DeductStockItemRequest(
 			@NotNull UUID productId,
 			@NotNull @Min(1) Integer quantity) {
 	}
+
+    public record AddStockItemRequest(
+            @NotNull UUID productId,
+            @NotNull @Min(1) Integer quantity) {
+    }
 }

@@ -165,10 +165,28 @@ public class ProductService {
 			product.setStockQuantity(product.getStockQuantity() - deduction.quantity());
 		}
 	}
+    public void addStock(List<StockAddition> quantity) {
+        for (StockAddition addition : quantity) {
+            Product product = productRepository.findByIdAndDeletedAtIsNull(addition.productId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+            if (addition.quantity() == null || addition.quantity() <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be greater than zero");
+            }
+            if (product.getStockQuantity() < addition.quantity()) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Insufficient stock for product " + addition.productId());
+            }
+            // The enclosing transaction keeps the batch atomic if any later addition fails.
+            product.setStockQuantity(product.getStockQuantity() + addition.quantity());
+        }
+    }
 
 	public record ProductImagePayload(byte[] data, String contentType) {
 	}
 
 	public record StockDeduction(UUID productId, Integer quantity) {
 	}
+    public record StockAddition(UUID productId, Integer quantity) {
+    }
 }

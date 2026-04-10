@@ -136,6 +136,10 @@ public class OrderService {
             productStockClient.deductStock(order.getOrderItems());
         }
 
+        if (status == OrderStatus.CANCELLED && order.getStatus() != OrderStatus.CANCELLED) {
+            productStockClient.addStock(order.getOrderItems());
+        }
+
         order.setStatus(status);
 
         return orderRepository.save(order);
