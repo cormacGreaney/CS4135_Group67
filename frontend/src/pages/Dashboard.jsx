@@ -22,6 +22,15 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshingOrders, setRefreshingOrders] = useState(false);
   const [error, setError] = useState("");
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const loadOrders = async (userId, showSpinner = false) => {
     if (showSpinner) {
@@ -60,6 +69,72 @@ function Dashboard() {
     loadDashboard();
   }, []);
 
+  const handlePasswordInputChange = (field, value) => {
+    setPasswordForm((current) => ({ ...current, [field]: value }));
+    if (passwordError) setPasswordError("");
+    if (passwordMessage) setPasswordMessage("");
+  };
+
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+    setPasswordError("");
+    setPasswordMessage("");
+
+    const currentPassword = passwordForm.currentPassword.trim();
+    const newPassword = passwordForm.newPassword.trim();
+    const confirmPassword = passwordForm.confirmPassword.trim();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("All password fields are required.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError("New password must be at least 8 characters long.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New password and confirmation do not match.");
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setPasswordError("New password must be different from your current password.");
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      await apiFetch("/api/users/me/password", {
+        method: "PUT",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setPasswordMessage("Password updated successfully.");
+    } catch (err) {
+      setPasswordError(err.message || "Failed to change password.");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const openPasswordModal = () => {
+    setPasswordError("");
+    setPasswordMessage("");
+    setShowPasswordModal(true);
+  };
+
+  const closePasswordModal = () => {
+    if (changingPassword) return;
+    setShowPasswordModal(false);
+    setPasswordError("");
+    setPasswordMessage("");
+    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  };
+
   const pendingOrders = orders.filter(order => order.status === "PENDING").length;
   const latestOrder = orders.length > 0 ? orders[0] : null;
   const totalSpent = orders.reduce((sum, order) => sum + Number(order.totalPrice ?? 0), 0);
@@ -67,7 +142,8 @@ function Dashboard() {
   const statusBadge = (status) => {
     const colours = {
       PENDING:   { bg: "#fff8e1", text: "#b8860b" },
-      SHIPPED:   { bg: "#e8f0fe", text: "#1a56db" },
+      PAID:      { bg: "#e8f5e9", text: "#4f7dfc" },
+      SHIPPED:   { bg: "#e8f0fe", text: "#db771a" },
       DELIVERED: { bg: "#e6f4ea", text: "#2e7d32" },
       CANCELLED: { bg: theme.errorBackground, text: theme.errorText },
     };
@@ -98,7 +174,7 @@ function Dashboard() {
   }
 
   return (
-    <div style={{ backgroundColor: theme.backgroundWarm, minHeight: "100vh", padding: "30px 20px" }}>
+    <div style={{ backgroundColor: theme.backgroundWarm, minHeight: "calc(100vh - 64px)", padding: "30px 20px", boxSizing: "border-box" }}>
       <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
           <div style={{ flex: 1 }} />
@@ -107,14 +183,22 @@ function Dashboard() {
             <LogoutButton />
           </div>
         </div>
-<p style={{ color: theme.textMuted, textAlign: "center", marginBottom: "36px", fontFamily: "'Arial', sans-serif" }}>Welcome back, {user.email}</p>
+        <p style={{ color: theme.textMuted, textAlign: "center", marginBottom: "30px", fontFamily: "'Arial', sans-serif" }}>Welcome back, {user.email}</p>
+        <p style={{ textAlign: "center", marginTop: "-20px", marginBottom: "30px" }}>
+          <button
+            type="button"
+            onClick={openPasswordModal}
+            style={{ background: "none", border: "none", padding: 0, color: theme.buttonPrimary, textDecoration: "underline", cursor: "pointer", fontSize: "14px", fontWeight: "600" }}
+          >
+            Change password
+          </button>
+        </p>
         {error && (
           <p style={{ color: theme.errorText, backgroundColor: theme.errorBackground, padding: "15px", borderRadius: "8px", marginBottom: "24px", textAlign: "center", fontFamily: "'Arial', sans-serif" }}>
             {error}
           </p>
         )}
 
-        {/* Stats Cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px", marginBottom: "30px" }}>
           {[
             { label: "Total Orders",   value: orders.length,              colour: theme.textAccent },
@@ -128,7 +212,6 @@ function Dashboard() {
           ))}
         </div>
 
-        {/* Profile */}
         <section style={card}>
           {sectionHeading("Profile")}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "8px 24px" }}>
@@ -145,7 +228,84 @@ function Dashboard() {
           </div>
         </section>
 
-        {/* Latest Order */}
+        {showPasswordModal && (
+          <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0, 0, 0, 0.45)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "20px" }}>
+            <section style={{ width: "100%", maxWidth: "560px", backgroundColor: theme.backgroundWhite, padding: "24px", borderRadius: "10px", border: `1px solid ${theme.border}`, boxShadow: "0 10px 30px rgba(0,0,0,0.2)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+                <h3 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, margin: 0, fontSize: "22px" }}>Change Password</h3>
+                <button
+                  type="button"
+                  onClick={closePasswordModal}
+                  disabled={changingPassword}
+                  style={{ padding: "8px 12px", backgroundColor: theme.textMuted, color: theme.buttonPrimaryText, border: "none", borderRadius: "6px", cursor: changingPassword ? "not-allowed" : "pointer" }}
+                >
+                  Close
+                </button>
+              </div>
+
+              {passwordError && (
+                <p style={{ color: theme.errorText, backgroundColor: theme.errorBackground, padding: "12px", borderRadius: "8px", marginBottom: "14px" }}>
+                  {passwordError}
+                </p>
+              )}
+
+              {passwordMessage && (
+                <p style={{ color: theme.success, backgroundColor: theme.backgroundWarm, border: `1px solid ${theme.border}`, padding: "12px", borderRadius: "8px", marginBottom: "14px" }}>
+                  {passwordMessage}
+                </p>
+              )}
+
+              <form onSubmit={handleChangePassword} style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px 16px", alignItems: "end" }}>
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={{ display: "block", marginBottom: "6px", color: theme.textMuted, fontSize: "13px", fontWeight: "600" }}>Current Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => handlePasswordInputChange("currentPassword", e.target.value)}
+                    disabled={changingPassword}
+                    autoComplete="current-password"
+                    style={{ width: "100%", padding: "10px", borderRadius: "6px", border: `1px solid ${theme.border}`, boxSizing: "border-box" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", marginBottom: "6px", color: theme.textMuted, fontSize: "13px", fontWeight: "600" }}>New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => handlePasswordInputChange("newPassword", e.target.value)}
+                    disabled={changingPassword}
+                    autoComplete="new-password"
+                    style={{ width: "100%", padding: "10px", borderRadius: "6px", border: `1px solid ${theme.border}`, boxSizing: "border-box" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", marginBottom: "6px", color: theme.textMuted, fontSize: "13px", fontWeight: "600" }}>Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => handlePasswordInputChange("confirmPassword", e.target.value)}
+                    disabled={changingPassword}
+                    autoComplete="new-password"
+                    style={{ width: "100%", padding: "10px", borderRadius: "6px", border: `1px solid ${theme.border}`, boxSizing: "border-box" }}
+                  />
+                </div>
+
+                <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    type="submit"
+                    disabled={changingPassword}
+                    style={{ padding: "10px 16px", backgroundColor: theme.buttonPrimary, color: theme.buttonPrimaryText, border: "none", borderRadius: "4px", cursor: changingPassword ? "not-allowed" : "pointer" }}
+                  >
+                    {changingPassword ? "Updating..." : "Update Password"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        )}
+
         {latestOrder && (
           <section style={card}>
             {sectionHeading("Latest Order")}
@@ -164,7 +324,6 @@ function Dashboard() {
           </section>
         )}
 
-        {/* Order History */}
         <section style={card}>
           <h3 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, margin: "0 0 18px 0", fontSize: "20px", borderBottom: `2px solid ${theme.textAccent}`, paddingBottom: "10px" }}>Order History</h3>
 
@@ -216,7 +375,6 @@ function Dashboard() {
           </div>
         </section>
 
-        {/* Selected Order Details */}
         {selectedOrder && (
           <section style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "18px" }}>
