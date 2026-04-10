@@ -172,11 +172,11 @@ public class ProductService {
             if (addition.quantity() == null || addition.quantity() <= 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantity must be greater than zero");
             }
-            if (product.getStockQuantity() < addition.quantity()) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "Insufficient stock for product " + addition.productId());
-            }
+//            if (product.getStockQuantity() < addition.quantity()) {
+//                throw new ResponseStatusException(
+//                        HttpStatus.CONFLICT,
+//                        "Insufficient stock for product " + addition.productId());
+//            }
             // The enclosing transaction keeps the batch atomic if any later addition fails.
             product.setStockQuantity(product.getStockQuantity() + addition.quantity());
         }

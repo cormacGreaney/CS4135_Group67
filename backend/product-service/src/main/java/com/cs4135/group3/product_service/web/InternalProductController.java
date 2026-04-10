@@ -34,7 +34,7 @@ public class InternalProductController {
 
     @PostMapping("/stock/add")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void addStock(@Valid @RequestBody DeductStockRequest request) {
+    public void addStock(@Valid @RequestBody AddStockRequest request) {
         // This endpoint is for trusted service-to-service calls, not public storefront traffic.
         productService.addStock(request.items().stream()
                 .map(item -> new ProductService.StockAddition(item.productId(), item.quantity()))
@@ -46,7 +46,7 @@ public class InternalProductController {
 	}
 
     public record AddStockRequest(
-            @NotEmpty List<@Valid AddStockRequest> items) {
+            @NotEmpty List<@Valid AddStockItemRequest> items) {
     }
 
 	public record DeductStockItemRequest(
