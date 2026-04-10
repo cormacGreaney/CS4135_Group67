@@ -1,0 +1,7 @@
+ALTER TABLE orders
+    ADD COLUMN full_name VARCHAR(255) NULL,
+    ADD COLUMN street_address VARCHAR(255) NULL,
+    ADD COLUMN street_address_2 VARCHAR(255) NULL,
+    ADD COLUMN city_town VARCHAR(255) NULL,
+    ADD COLUMN county VARCHAR(255) NULL,
+    ADD COLUMN eircode VARCHAR(50) NULL;
