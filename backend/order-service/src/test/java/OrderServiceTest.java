@@ -50,6 +50,12 @@ class OrderServiceTest {
     private static final UUID PRODUCT_ID_2 = UUID.fromString("00000000-0000-0000-0000-000000000002");
     private static final UUID PRODUCT_ID_3 = UUID.fromString("00000000-0000-0000-0000-000000000003");
     private static final UUID PRODUCT_ID_5 = UUID.fromString("00000000-0000-0000-0000-000000000005");
+    private static final String FULL_NAME = "Jane Customer";
+    private static final String STREET_ADDRESS = "1 Main Street";
+    private static final String STREET_ADDRESS_2 = "Apartment 2B";
+    private static final String CITY_TOWN = "Limerick";
+    private static final String COUNTY = "County Limerick";
+    private static final String EIRCODE = "V94 ABC1";
 
     @Mock
     private OrderRepository orderRepository;
@@ -81,15 +87,27 @@ class OrderServiceTest {
                 List.of(new SimpleGrantedAuthority(role)));
     }
 
+    private static OrderRequest orderRequest(Long userId, String orderNumber, List<OrderItemRequest> items) {
+        return new OrderRequest(
+                null,
+                userId,
+                orderNumber,
+                FULL_NAME,
+                STREET_ADDRESS,
+                STREET_ADDRESS_2,
+                CITY_TOWN,
+                COUNTY,
+                EIRCODE,
+                items);
+    }
+
     @Test
     void createOrderMapsRequestAndSavesOrder() {
         stubSaveReturnsPersistedOrder();
-        OrderRequest request = new OrderRequest(
-                null,
+        OrderRequest request = orderRequest(
                 42L,
                 null,
-                List.of(new OrderItemRequest(PRODUCT_ID_1, "Mouse", new BigDecimal("49.99"), 3))
-        );
+                List.of(new OrderItemRequest(PRODUCT_ID_1, "Mouse", new BigDecimal("49.99"), 3)));
 
         orderService.createOrder(request, CUSTOMER_AUTH);
 
@@ -108,17 +126,21 @@ class OrderServiceTest {
         assertEquals(new BigDecimal("49.99"), item.getPrice());
         assertEquals(3, item.getQuantity());
         assertEquals(new BigDecimal("149.97"), savedOrder.getTotalPrice());
+        assertEquals(FULL_NAME, savedOrder.getFullName());
+        assertEquals(STREET_ADDRESS, savedOrder.getStreetAddress());
+        assertEquals(STREET_ADDRESS_2, savedOrder.getStreetAddress2());
+        assertEquals(CITY_TOWN, savedOrder.getCityTown());
+        assertEquals(COUNTY, savedOrder.getCounty());
+        assertEquals(EIRCODE, savedOrder.getEircode());
     }
 
     @Test
     void createOrderGeneratesNewOrderNumber() {
         stubSaveReturnsPersistedOrder();
-        OrderRequest request = new OrderRequest(
-                null,
+        OrderRequest request = orderRequest(
                 7L,
                 "request-order-number",
-                List.of(new OrderItemRequest(PRODUCT_ID_2, "Desk Lamp", new BigDecimal("15.50"), 1))
-        );
+                List.of(new OrderItemRequest(PRODUCT_ID_2, "Desk Lamp", new BigDecimal("15.50"), 1)));
 
         orderService.createOrder(request, ADMIN_AUTH);
 
@@ -134,12 +156,10 @@ class OrderServiceTest {
     @Test
     void createOrderSavesExactlyOneOrder() {
         stubSaveReturnsPersistedOrder();
-        OrderRequest request = new OrderRequest(
-                null,
+        OrderRequest request = orderRequest(
                 11L,
                 null,
-                List.of(new OrderItemRequest(PRODUCT_ID_3, "Keyboard", new BigDecimal("120.00"), 2))
-        );
+                List.of(new OrderItemRequest(PRODUCT_ID_3, "Keyboard", new BigDecimal("120.00"), 2)));
 
         orderService.createOrder(request, auth("11", "ROLE_CUSTOMER"));
 
@@ -150,14 +170,12 @@ class OrderServiceTest {
     @Test
     void createOrderWithMultipleItemsCalculatesTotalCorrectly() {
         stubSaveReturnsPersistedOrder();
-        OrderRequest request = new OrderRequest(
-                null,
+        OrderRequest request = orderRequest(
                 42L,
                 null,
                 List.of(
                         new OrderItemRequest(PRODUCT_ID_1, "Mouse", new BigDecimal("20.00"), 2),
-                        new OrderItemRequest(PRODUCT_ID_2, "Keyboard", new BigDecimal("50.00"), 1))
-        );
+                        new OrderItemRequest(PRODUCT_ID_2, "Keyboard", new BigDecimal("50.00"), 1)));
 
         orderService.createOrder(request, CUSTOMER_AUTH);
 
@@ -172,12 +190,10 @@ class OrderServiceTest {
     @Test
     void createOrderSetsPendingStatusAndOrderedDate() {
         stubSaveReturnsPersistedOrder();
-        OrderRequest request = new OrderRequest(
-                null,
+        OrderRequest request = orderRequest(
                 12L,
                 null,
-                List.of(new OrderItemRequest(PRODUCT_ID_1, "Headphones", new BigDecimal("35.00"), 1))
-        );
+                List.of(new OrderItemRequest(PRODUCT_ID_1, "Headphones", new BigDecimal("35.00"), 1)));
 
         orderService.createOrder(request, auth("12", "ROLE_CUSTOMER"));
 
@@ -193,14 +209,12 @@ class OrderServiceTest {
     @Test
     void createOrderLinksEachOrderItemBackToParentOrder() {
         stubSaveReturnsPersistedOrder();
-        OrderRequest request = new OrderRequest(
-                null,
+        OrderRequest request = orderRequest(
                 21L,
                 null,
                 List.of(
                         new OrderItemRequest(PRODUCT_ID_1, "Mouse", new BigDecimal("20.00"), 1),
-                        new OrderItemRequest(PRODUCT_ID_2, "Keyboard", new BigDecimal("45.00"), 1))
-        );
+                        new OrderItemRequest(PRODUCT_ID_2, "Keyboard", new BigDecimal("45.00"), 1)));
 
         orderService.createOrder(request, auth("21", "ROLE_CUSTOMER"));
 
@@ -214,12 +228,10 @@ class OrderServiceTest {
     @Test
     void createOrderPublishesOrderCreatedEvent() {
         stubSaveReturnsPersistedOrder();
-        OrderRequest request = new OrderRequest(
-                null,
+        OrderRequest request = orderRequest(
                 33L,
                 null,
-                List.of(new OrderItemRequest(PRODUCT_ID_5, "Webcam", new BigDecimal("80.00"), 2))
-        );
+                List.of(new OrderItemRequest(PRODUCT_ID_5, "Webcam", new BigDecimal("80.00"), 2)));
 
         orderService.createOrder(request, auth("33", "ROLE_CUSTOMER"));
 
@@ -236,7 +248,7 @@ class OrderServiceTest {
     @Test
     void createOrderWithEmptyItemsSetsZeroTotal() {
         stubSaveReturnsPersistedOrder();
-        OrderRequest request = new OrderRequest(null, 55L, null, List.of());
+        OrderRequest request = orderRequest(55L, null, List.of());
 
         Order savedOrder = orderService.createOrder(request, auth("55", "ROLE_CUSTOMER"));
 
@@ -249,19 +261,17 @@ class OrderServiceTest {
 
     @Test
     void createOrderThrowsWhenItemsAreNull() {
-        OrderRequest request = new OrderRequest(null, 66L, null, null);
+        OrderRequest request = orderRequest(66L, null, null);
 
         assertThrows(NullPointerException.class, () -> orderService.createOrder(request, auth("66", "ROLE_CUSTOMER")));
     }
 
     @Test
     void createOrderRejectsMismatchedUserIdInRequest() {
-        OrderRequest request = new OrderRequest(
-                null,
+        OrderRequest request = orderRequest(
                 999L,
                 null,
-                List.of(new OrderItemRequest(PRODUCT_ID_1, "Mouse", new BigDecimal("49.99"), 1))
-        );
+                List.of(new OrderItemRequest(PRODUCT_ID_1, "Mouse", new BigDecimal("49.99"), 1)));
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,
