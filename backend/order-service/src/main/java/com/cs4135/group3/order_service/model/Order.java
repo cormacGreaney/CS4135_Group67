@@ -47,7 +47,6 @@ public class Order
 
     private String streetAddress;
 
-    @Column(name = "street_address_2")
     private String streetAddress2;
 
     private String cityTown;
