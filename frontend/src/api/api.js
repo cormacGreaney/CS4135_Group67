@@ -22,7 +22,16 @@ export async function apiFetch(path, options = {}) {
     throw new Error(errData.message || "API request failed");
   }
 
-  return res.json();
+  // 204 No Content (e.g. DELETE) and empty bodies are valid - no JSON to parse
+  if (res.status === 204 || res.status === 205) {
+    return undefined;
+  }
+
+  const text = await res.text();
+  if (!text.trim()) {
+    return undefined;
+  }
+  return JSON.parse(text);
 }
 
 // Convenience logout function
