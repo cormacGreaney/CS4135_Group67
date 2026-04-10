@@ -96,11 +96,18 @@ function Checkout() {
     try {
       const user = await apiFetch("/api/users/me");
 
-      // Step 1 — create the order
       const order = await apiFetch("/api/order", {
         method: "POST",
         body: JSON.stringify({
           userId: user.userId,
+        
+          fullName: shipping.fullName,
+          streetAddress: shipping.addressLine1,
+          streetAddress2: shipping.addressLine2 || "",
+          cityTown: shipping.city,
+          county: shipping.county,
+          eircode: shipping.eircode,
+        
           items: cart.map(item => ({
             productId: item.id,
             productName: item.name,
@@ -109,7 +116,7 @@ function Checkout() {
           })),
         }),
       });
-      
+
       const [expiryMonth, expiryYear] = card.expiry.split("/").map(Number);
 
       const payment = await apiFetch("/api/payments/checkout-card", {
