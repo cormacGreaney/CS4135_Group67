@@ -873,6 +873,50 @@ function AdminDashboard() {
                         <p style={{ color: theme.textPrimary, margin: "4px 0", fontSize: "14px" }}><strong style={{ color: theme.textMuted }}>Total:</strong> {formatCurrency(order.totalPrice)}</p>
                       </div>
 
+                      {/* Shipping Address */}
+                      <div style={{
+                        marginBottom: "20px",
+                        padding: "16px",
+                        borderRadius: "8px",
+                        border: `1px solid ${theme.border}`,
+                        backgroundColor: theme.backgroundWhite
+                      }}>
+                        <h6 style={{
+                          fontFamily: "'Georgia', serif",
+                          color: theme.textPrimary,
+                          margin: "0 0 12px 0",
+                          fontSize: "16px",
+                          borderBottom: `1px solid ${theme.border}`,
+                          paddingBottom: "8px"
+                        }}>
+                          Shipping Address
+                        </h6>
+                      
+                        <div style={{ display: "grid", gap: "4px" }}>
+                          <p style={{ margin: 0, color: theme.textPrimary, fontWeight: "600" }}>
+                            {order.fullName || "N/A"}
+                          </p>
+                      
+                          <p style={{ margin: 0, color: theme.textPrimary }}>
+                            {order.streetAddress || ""}
+                          </p>
+                      
+                          {order.streetAddress2 && (
+                            <p style={{ margin: 0, color: theme.textPrimary }}>
+                              {order.streetAddress2}
+                            </p>
+                          )}
+                      
+                          <p style={{ margin: 0, color: theme.textPrimary }}>
+                            {order.cityTown || ""}, {order.county || ""}
+                          </p>
+                        
+                          <p style={{ margin: 0, color: theme.textMuted, fontSize: "13px" }}>
+                            {order.eircode || ""}
+                          </p>
+                        </div>
+                      </div>
+
                       <h6 style={{ fontFamily: "'Georgia', serif", color: theme.textPrimary, margin: "0 0 12px 0", fontSize: "16px", paddingTop: "16px", borderTop: `1px solid ${theme.border}` }}>Items</h6>
                       {order.items?.length ? (
                         <div style={{ overflowX: "auto" }}>
