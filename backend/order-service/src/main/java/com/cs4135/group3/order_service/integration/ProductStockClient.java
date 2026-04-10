@@ -39,10 +39,29 @@ public class ProductStockClient {
 				.retrieve()
 				.toBodilessEntity();
 	}
+    public void addStock(List<OrderItem> items) {
+        // Send only the minimal stock delta payload to product-service's internal endpoint.
+        AddStockRequest body = new AddStockRequest(
+                items.stream()
+                        .map(item -> new AddStockItemRequest(item.getProductId(), item.getQuantity()))
+                        .toList());
+
+        restClient.post()
+                // Trim a trailing slash so config works with either http://host:port or http://host:port/.
+                .uri(productServiceBaseUrl.replaceAll("/$", "") + "/internal/products/stock/add")
+                .header(InternalApiTokenFilter.HEADER, internalApiToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
+    }
 
 	public record DeductStockRequest(List<DeductStockItemRequest> items) {
 	}
-
+    public record AddStockRequest(List<AddStockItemRequest> items) {
+    }
 	public record DeductStockItemRequest(UUID productId, Integer quantity) {
 	}
+    public record AddStockItemRequest(UUID productId, Integer quantity) {
+    }
 }
