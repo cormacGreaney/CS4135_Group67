@@ -53,12 +53,6 @@ public class OrderService {
         order.setOrderNumber(UUID.randomUUID().toString());
         order.setStatus(OrderStatus.PENDING);
         order.setOrderedDate(LocalDateTime.now());
-        order.setFullName(orderRequest.fullName().trim());
-        order.setStreetAddress(orderRequest.streetAddress().trim());
-        order.setStreetAddress2(normalizeOptional(orderRequest.streetAddress2()));
-        order.setCityTown(orderRequest.cityTown().trim());
-        order.setCounty(orderRequest.county().trim());
-        order.setEircode(orderRequest.eircode().trim());
 
         // Convert incoming request items into persistent order items linked back to this order.
         List<OrderItem> orderItems = orderRequest.items()
@@ -263,14 +257,6 @@ public class OrderService {
         if (amount == null || amount < 1) {
             throw new ResponseStatusException(FORBIDDEN, "Amount must be greater than zero");
         }
-    }
-
-    private String normalizeOptional(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private void enforceSameUserOrAdmin(Long userId, Authentication authentication, String message) {

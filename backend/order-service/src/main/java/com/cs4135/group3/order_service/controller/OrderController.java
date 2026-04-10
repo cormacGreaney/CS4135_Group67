@@ -1,6 +1,8 @@
 package com.cs4135.group3.order_service.controller;
 
 import java.util.List;
+
+import com.cs4135.group3.order_service.integration.ProductStockClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,7 +37,7 @@ public class OrderController
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public OrderResponse createOrder(@Valid @RequestBody OrderRequest orderRequest, Authentication authentication)
+    public OrderResponse createOrder(@RequestBody OrderRequest orderRequest, Authentication authentication)
     {
         return OrderResponse.fromEntity(orderService.createOrder(orderRequest, authentication));
     }

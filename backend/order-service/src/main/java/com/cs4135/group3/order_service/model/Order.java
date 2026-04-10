@@ -42,18 +42,6 @@ public class Order
 
     private BigDecimal totalPrice;
 
-    private String fullName;
-
-    private String streetAddress;
-
-    private String streetAddress2;
-
-    private String cityTown;
-
-    private String county;
-
-    private String eircode;
-
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
