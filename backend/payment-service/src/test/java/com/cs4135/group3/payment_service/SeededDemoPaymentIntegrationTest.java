@@ -44,4 +44,68 @@ class SeededDemoPaymentIntegrationTest {
 	@Autowired
 	PaymentRepository paymentRepository;
 
+	@Test
+	void seedRunnerInsertsExpectedRow() {
+		assertThat(paymentRepository.findById(SEED_PAYMENT_ID)).isPresent();
+		assertThat(paymentRepository.findById(SEED_PAYMENT_ID).orElseThrow().getUserId()).isEqualTo(1L);
+		assertThat(paymentRepository.findById(SEED_PAYMENT_ID).orElseThrow().getOrderId()).isEqualTo(SEED_ORDER_ID);
+	}
+
+	@Test
+	void ownerCanFetchSeededPaymentById() throws Exception {
+		String token = JwtTestTokens.accessToken("1", "CUSTOMER");
+		mockMvc.perform(get("/api/payments/" + SEED_PAYMENT_ID)
+						.header("Authorization", "Bearer " + token)
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(SEED_PAYMENT_ID.toString()))
+				.andExpect(jsonPath("$.orderId").value((int) SEED_ORDER_ID))
+				.andExpect(jsonPath("$.userId").value(1))
+				.andExpect(jsonPath("$.amount").value(49.99))
+				.andExpect(jsonPath("$.provider").value("DemoProvider"))
+				.andExpect(jsonPath("$.status").value("SUCCESS"));
+	}
+
+	@Test
+	void otherCustomerCannotFetchSeededPaymentById() throws Exception {
+		String token = JwtTestTokens.accessToken("9", "CUSTOMER");
+		mockMvc.perform(get("/api/payments/" + SEED_PAYMENT_ID)
+						.header("Authorization", "Bearer " + token)
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isForbidden())
+				.andExpect(jsonPath("$.message").value("You can only view your own payments"));
+	}
+
+	@Test
+	void administratorCanFetchSeededPaymentById() throws Exception {
+		String token = JwtTestTokens.accessToken("2", "ADMINISTRATOR");
+		mockMvc.perform(get("/api/payments/" + SEED_PAYMENT_ID)
+						.header("Authorization", "Bearer " + token)
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.userId").value(1));
+	}
+
+	@Test
+	void ownerListsSeededPaymentByOrderId() throws Exception {
+		String token = JwtTestTokens.accessToken("1", "CUSTOMER");
+		mockMvc.perform(get("/api/payments/order/" + SEED_ORDER_ID)
+						.header("Authorization", "Bearer " + token)
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isArray())
+				.andExpect(jsonPath("$[0].id").value(SEED_PAYMENT_ID.toString()))
+				.andExpect(jsonPath("$[0].orderId").value((int) SEED_ORDER_ID));
+	}
+
+	@Test
+	void otherCustomerSeesNoPaymentsForSeededOrderId() throws Exception {
+		String token = JwtTestTokens.accessToken("9", "CUSTOMER");
+		mockMvc.perform(get("/api/payments/order/" + SEED_ORDER_ID)
+						.header("Authorization", "Bearer " + token)
+						.accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$").isArray())
+				.andExpect(jsonPath("$").isEmpty());
+	}
 }
