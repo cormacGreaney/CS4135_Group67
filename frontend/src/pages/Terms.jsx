@@ -1,6 +1,9 @@
 import theme from "../styles/theme";
+import { useNavigate } from "react-router-dom";
 
 function Terms() {
+  const navigate = useNavigate();
+
   const sectionStyle = {
     marginBottom: "20px",
     fontFamily: "'Arial', sans-serif",
@@ -23,6 +26,26 @@ function Terms() {
       minHeight: "calc(100vh - 64px)",
       padding: "30px 20px",
     }}>
+        <button
+           onClick={() => navigate(-1)}
+           style={{
+             position: "fixed",
+             top: "84px",
+             left: "20px",
+             background: theme.backgroundWhite,
+             border: `1px solid ${theme.border}`,
+             color: theme.textPrimary,
+             padding: "10px 14px",
+             fontSize: "12px",
+             letterSpacing: "0.08em",
+             textTransform: "uppercase",
+             cursor: "pointer",
+             borderRadius: "2px",
+             zIndex: 90,
+           }}
+         >
+           ← Back
+      </button>
       <div style={{
         maxWidth: "900px",
         margin: "0 auto",
