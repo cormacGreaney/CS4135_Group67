@@ -24,7 +24,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Testcontainers
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
-		"JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+		"JWT_SECRET=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"app.payments.seed.enabled=false"
 })
 class PaymentServiceApplicationTests {
 

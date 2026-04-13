@@ -23,7 +23,7 @@ Content-Type: application/json
 GET {{baseUrl}}/api/users/me
 Authorization: Bearer {{token}}
 
-### Get seeded payment by payment id
+### Get seeded payment by payment id (requires app.payments.seed.enabled=true on payment-service)
 GET {{baseUrl}}/api/payments/b0000000-0000-4000-8000-000000000001
 Authorization: Bearer {{token}}
 
