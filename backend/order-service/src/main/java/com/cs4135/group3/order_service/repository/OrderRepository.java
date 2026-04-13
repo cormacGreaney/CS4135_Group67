@@ -11,6 +11,8 @@ import com.cs4135.group3.order_service.model.OrderStatus;
 
 public interface OrderRepository extends JpaRepository<Order, Long>
 {
+	boolean existsByOrderNumber(String orderNumber);
+
 	@EntityGraph("Order.withItems")
 	@Override
 	List<Order> findAll();
