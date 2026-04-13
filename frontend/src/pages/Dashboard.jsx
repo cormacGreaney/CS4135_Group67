@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../api/api.js";
 import theme from "../styles/theme";
+import { Link } from "react-router-dom";
 import LogoutButton from "../components/LogoutButton.jsx";
 
 function formatCurrency(value) {
@@ -91,6 +92,26 @@ function Dashboard() {
 
     if (newPassword.length < 8) {
       setPasswordError("New password must be at least 8 characters long.");
+      return;
+    }
+    
+    if (!/[A-Z]/.test(newPassword)) {
+      setPasswordError("New password must contain at least one uppercase letter.");
+      return;
+    }
+    
+    if (!/[a-z]/.test(newPassword)) {
+      setPasswordError("New password must contain at least one lowercase letter.");
+      return;
+    }
+    
+    if (!/[0-9]/.test(newPassword)) {
+      setPasswordError("New password must contain at least one number.");
+      return;
+    }
+    
+    if (!/[^A-Za-z0-9]/.test(newPassword)) {
+      setPasswordError("New password must contain at least one special character.");
       return;
     }
 
@@ -225,6 +246,28 @@ function Dashboard() {
                 <strong style={{ color: theme.textMuted, fontWeight: "600", marginRight: "6px" }}>{label}:</strong>{val}
               </p>
             ))}
+            <p
+              style={{
+                gridColumn: "1 / -1",
+                marginTop: "12px",
+                fontFamily: "'Arial', sans-serif",
+                fontSize: "14px",
+              }}
+            >
+              <strong style={{ color: theme.textMuted, marginRight: "6px" }}>
+                Legal:
+              </strong>
+              <Link
+                to="/terms"
+                style={{
+                  color: theme.textAccent,
+                  textDecoration: "underline",
+                  fontWeight: "500",
+                }}
+              >
+                Terms & Conditions
+              </Link>
+            </p>
           </div>
         </section>
 

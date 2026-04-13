@@ -8,6 +8,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import About from "./pages/About";
+import Terms from "./pages/Terms";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/about" element={<About />} />
+        <Route path="/terms" element={<Terms />} />
       </Routes>
     </BrowserRouter>
   );

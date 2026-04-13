@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useContext } from "react";
 import { apiFetch } from "../api/api.js";
 import { AuthContext } from "../context/AuthContext.jsx";
+import { Link } from "react-router-dom";
 import theme from "../styles/theme";
 
 function validateAuth(email, password, confirmPassword, mode, acceptedTerms, isOver18) {
@@ -206,7 +207,17 @@ function Login({ initialMode = "login" }) {
                   disabled={loading}
                 />
                 <label htmlFor="terms-checkbox" style={{ color: theme.textPrimary, fontFamily: "'Arial', sans-serif", fontSize: "14px" }}>
-                  I agree to the Terms and Conditions
+                  I agree to the{" "}
+                  <Link
+                    to="/terms"
+                    style={{
+                      color: theme.textAccent,
+                      textDecoration: "underline",
+                      fontWeight: "500",
+                    }}
+                  >
+                    Terms and Conditions
+                  </Link>
                 </label>
               </div>
 
