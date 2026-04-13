@@ -2,6 +2,8 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 export async function apiFetch(path, options = {}) {
   const token = localStorage.getItem("token");
+  const isAuthEndpoint = path.startsWith("/api/auth/");
+  const isAuthPage = window.location.pathname === "/login" || window.location.pathname === "/register";
   const headers = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -13,8 +15,13 @@ export async function apiFetch(path, options = {}) {
   // Auto-logout if unauthorized
   if (res.status === 401) {
     localStorage.removeItem("token");
-    window.location.href = "/login";
-    throw new Error("Unauthorized, logging out...");
+    const errData = await res.json().catch(() => ({}));
+
+    if (!isAuthEndpoint && !isAuthPage) {
+      window.location.href = "/login";
+    }
+
+    throw new Error(errData.message || "Unauthorized");
   }
 
   if (!res.ok) {

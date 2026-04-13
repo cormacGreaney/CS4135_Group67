@@ -6,10 +6,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 import com.cs4135.group3.order_service.config.JwtProperties;
+import com.cs4135.group3.order_service.config.OrderSeedProperties;
 
 @SpringBootApplication
 @EnableRabbit
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({ JwtProperties.class, OrderSeedProperties.class })
 public class OrderServiceApplication {
 
 	public static void main(String[] args) {

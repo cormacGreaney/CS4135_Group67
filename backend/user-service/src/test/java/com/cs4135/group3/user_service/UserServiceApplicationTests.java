@@ -1,6 +1,7 @@
 package com.cs4135.group3.user_service;
 
 import com.cs4135.group3.user_service.config.JwtProperties;
+import com.cs4135.group3.user_service.support.AbstractUserServiceIntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -23,10 +24,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
 @Testcontainers
-@AutoConfigureMockMvc
-class UserServiceApplicationTests {
+class UserServiceApplicationTests extends AbstractUserServiceIntegrationTest{
 
 	@Container
 	@ServiceConnection
