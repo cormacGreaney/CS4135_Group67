@@ -165,7 +165,8 @@ services:
   frontend:
     image: ${GHCR_PREFIX}/ecommerce-frontend:latest
     ports:
-      - "80:80"
+      # Host nginx listens on :80/:443 and proxies to this localhost-only frontend port.
+      - "127.0.0.1:8081:80"
     depends_on:
       - api-gateway
 
