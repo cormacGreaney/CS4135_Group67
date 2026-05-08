@@ -19,6 +19,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Oracle Ampere / ARM64 VMs need arm64 images; GitHub runners are amd64 — build both.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -40,6 +44,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend/user-service
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/ecommerce-user-service:sha-${{ steps.vars.outputs.SHORT }}
@@ -49,6 +54,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend/order-service
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/ecommerce-order-service:sha-${{ steps.vars.outputs.SHORT }}
@@ -58,6 +64,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend/product-service
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/ecommerce-product-service:sha-${{ steps.vars.outputs.SHORT }}
@@ -67,6 +74,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend/payment-service
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/ecommerce-payment-service:sha-${{ steps.vars.outputs.SHORT }}
@@ -76,6 +84,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend/api-gateway
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/ecommerce-api-gateway:sha-${{ steps.vars.outputs.SHORT }}
@@ -85,6 +94,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
+          target: production
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL || 'http://localhost:8080' }}
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER_LC }}/ecommerce-frontend:sha-${{ steps.vars.outputs.SHORT }}
