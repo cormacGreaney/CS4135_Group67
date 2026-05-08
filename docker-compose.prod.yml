@@ -1,0 +1,173 @@
+# Production stack: pull pre-built images from GHCR (see .github/workflows/cd.yml).
+#
+# 1. Copy compose.prod.env.example -> .env (same directory as this file).
+# 2. Set GHCR_PREFIX to ghcr.io/<your-github-username-lowercase> (must match image namespace).
+# 3. Set strong secrets (JWT_SECRET, DB passwords, INTERNAL_API_TOKEN, RabbitMQ, etc.).
+# 4. If packages are private: docker login ghcr.io (PAT with read:packages).
+# 5. Run: docker compose -f docker-compose.prod.yml --env-file .env pull && docker compose -f docker-compose.prod.yml --env-file .env up -d
+#
+# Public ports: 80 (frontend), 8080 (API gateway). Databases and RabbitMQ are internal only.
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: user_service
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+
+  payment-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: payment_service
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+
+  order-mysql:
+    image: mysql:8.3.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: order_service
+    volumes:
+      - order-mysql-data:/var/lib/mysql
+      - ./backend/order-service/docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  product-mysql:
+    image: mysql:8.3.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: product_service
+    volumes:
+      - product-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  user-service:
+    image: ${GHCR_PREFIX}/ecommerce-user-service:latest
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/user_service
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "8081"
+
+  order-service:
+    image: ${GHCR_PREFIX}/ecommerce-order-service:latest
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_service?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&serverTimezone=UTC&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      JWT_SECRET: ${JWT_SECRET}
+      PRODUCT_SERVICE_BASE_URL: http://product-service:8082
+    depends_on:
+      order-mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+
+  product-service:
+    image: ${GHCR_PREFIX}/ecommerce-product-service:latest
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://product-mysql:3306/product_service?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&serverTimezone=UTC&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      product-mysql:
+        condition: service_healthy
+    expose:
+      - "8082"
+
+  payment-service:
+    image: ${GHCR_PREFIX}/ecommerce-payment-service:latest
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://payment-postgres:5432/payment_service
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
+      ORDER_SERVICE_BASE_URL: http://order-service:8085
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+    depends_on:
+      payment-postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      order-service:
+        condition: service_started
+    expose:
+      - "8084"
+
+  api-gateway:
+    image: ${GHCR_PREFIX}/ecommerce-api-gateway:latest
+    environment:
+      USER_SERVICE_URL: http://user-service:8081
+      ORDER_SERVICE_URL: http://order-service:8085
+      PRODUCT_SERVICE_URL: http://product-service:8082
+      PAYMENT_SERVICE_URL: http://payment-service:8084
+    ports:
+      - "8080:8080"
+    depends_on:
+      - user-service
+      - order-service
+      - product-service
+      - payment-service
+
+  frontend:
+    image: ${GHCR_PREFIX}/ecommerce-frontend:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - api-gateway
+
+volumes:
+  order-mysql-data:
+  product-mysql-data:

@@ -1,2 +1,5 @@
 /.idea
 /.vscode
+
+# Local secrets for docker-compose.prod.yml (copy from compose.prod.env.example)
+.env

@@ -20,6 +20,9 @@ jobs:
       - name: Validate compose file
         run: docker compose config --quiet
 
+      - name: Validate production compose file
+        run: docker compose -f docker-compose.prod.yml --env-file compose.prod.env.example config --quiet
+
       - name: Build all application images
         run: docker compose build
         env:
