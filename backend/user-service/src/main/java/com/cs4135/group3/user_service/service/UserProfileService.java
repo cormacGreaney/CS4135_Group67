@@ -33,7 +33,7 @@ public class UserProfileService {
 		User user = userRepository.findById(userId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 		if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
-			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is incorrect");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect");
 		}
 		if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password must be different from the current password");
