@@ -152,7 +152,7 @@ class UserServiceApplicationTests extends AbstractUserServiceIntegrationTest{
 	}
 
 	@Test
-	void changePasswordWithWrongCurrentPasswordReturnsUnauthorized() throws Exception {
+	void changePasswordWithWrongCurrentPasswordReturnsBadRequest() throws Exception {
 		String email = "cpw-" + UUID.randomUUID() + "@example.com";
 		String reg = "{ \"email\": \"" + email + "\", \"password\": \"password12\" }";
 		mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(reg))
@@ -165,7 +165,7 @@ class UserServiceApplicationTests extends AbstractUserServiceIntegrationTest{
 						.header("Authorization", "Bearer " + token)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{ \"currentPassword\": \"wrongpass1\", \"newPassword\": \"newpassword12\" }"))
-				.andExpect(status().isUnauthorized())
+				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.message").value("Current password is incorrect"));
 	}
 

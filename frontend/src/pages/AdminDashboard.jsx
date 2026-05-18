@@ -206,6 +206,22 @@ function AdminDashboard() {
       setPasswordError("New password must be at least 8 characters long.");
       return;
     }
+    if (!/[A-Z]/.test(newPassword)) {
+      setPasswordError("New password must include at least one uppercase letter.");
+      return;
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      setPasswordError("New password must include at least one lowercase letter.");
+      return;
+    }
+    if (!/[0-9]/.test(newPassword)) {
+      setPasswordError("New password must include at least one number.");
+      return;
+    }
+    if (!/[!@#$%^&*()_+\-=\[\]{};':\",./<>?]/.test(newPassword)) {
+      setPasswordError("New password must include at least one special character.");
+      return;
+    }
 
     if (newPassword !== confirmPassword) {
       setPasswordError("New password and confirmation do not match.");
