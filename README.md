@@ -6,7 +6,7 @@ Microservices e-commerce stack: **React (Vite)** frontend, **Spring Cloud Gatewa
 
 - **Docker** and Docker Compose (required for `npm run dev` and for user-service tests)
 - **Java 21** and **Maven** (to run `mvn test` or a single service outside Compose)
-- **Node.js** (optional; root `package.json` only wraps Docker Compose)
+- **Node.js** (root `package.json` only wraps Docker Compose)
 
 ## Run the full stack
 
