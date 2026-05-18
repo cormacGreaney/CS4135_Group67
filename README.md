@@ -85,3 +85,8 @@ User-service tests use **Testcontainers** (PostgreSQL); Docker must be running.
 - **CI** — on push and pull requests to `main`: validate Compose and build all stack images (`.github/workflows/ci.yml`).
 - **CD** — on push to `main`: build and push service images to **GitHub Container Registry** (`ghcr.io`, see `.github/workflows/cd.yml`).
 
+## Deployment
+Deployed fron the GHCR on an Oracle Cloud Infastructure Virtual Machine
+
+Hosted on https://limerickliquor.ie
+
